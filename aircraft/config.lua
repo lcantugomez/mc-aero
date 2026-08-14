@@ -27,6 +27,13 @@ local config = {
         textScale = 0.5,
     },
 
+    gps = {
+        enabled = true,         -- read absolute position from a CC GPS constellation
+        period = 1.0,           -- seconds between gps.locate() calls (it blocks, so not every tick)
+        timeout = 0.3,          -- max seconds to wait for a fix
+        useAltitudeForY = true, -- GPS Y is unreliable on this build; use altitude height instead
+    },
+
     peripherals = {
         altitude = "altitude_sensor_0",
         gimbal = "gimbal_sensor_0",
