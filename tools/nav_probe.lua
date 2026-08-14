@@ -58,18 +58,44 @@ local function callOr(nm, method)
     return "err"
 end
 
+-- Fill in your lodestone's world coordinates (F3 on the lodestone block).
+local LODESTONE = { x = 0, y = 0, z = 0 }
+
+local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
+
+local function numOf(nm, method)
+    if not nm then return nil end
+    local r = { pcall(peripheral.call, nm, method) }
+    if r[1] and type(r[2]) == "number" then return r[2] end
+    return nil
+end
+
 while true do
     local gx, gy, gz = gps.locate(0.4)
+    local dist = present.getDistanceToTarget and numOf(name, "getDistanceToTarget") or nil
+    local voff = present.getVerticalOffsetToTarget and numOf(name, "getVerticalOffsetToTarget") or nil
+    local bearing = present.getBearing and numOf(name, "getBearing") or nil
+    local height = altName and numOf(altName, "getHeight") or nil
+
     local line = {
-        "alt_height=" .. (altName and callOr(altName, "getHeight") or "n/a"),
-        "gpsY=" .. tostring(gy),
+        string.format("gps=(%s,%s,%s)", tostring(gx), tostring(gy), tostring(gz)),
+        "height=" .. tostring(height),
+        "dist=" .. tostring(dist),
+        "vOff=" .. tostring(voff),
+        "bearing=" .. tostring(bearing),
     }
-    if present.hasTarget then line[#line + 1] = "hasTarget=" .. callOr(name, "hasTarget") end
-    if present.getVerticalOffsetToTarget then
-        line[#line + 1] = "vOffset=" .. callOr(name, "getVerticalOffsetToTarget")
+    -- horizontal range from the slant/vertical triangle
+    if dist and voff then
+        local h2 = dist * dist - voff * voff
+        line[#line + 1] = string.format("horizNav=%.2f", h2 > 0 and math.sqrt(h2) or 0)
     end
-    if present.getDistanceToTarget then line[#line + 1] = "dist=" .. callOr(name, "getDistanceToTarget") end
-    if present.getBearing then line[#line + 1] = "bearing=" .. callOr(name, "getBearing") end
+    -- truth from GPS: horizontal range + geometric bearing to the lodestone,
+    -- so we can compare against the nav table's bearing and lock the convention.
+    if gx and gz then
+        local dxu, dzu = LODESTONE.x - gx, LODESTONE.z - gz
+        line[#line + 1] = string.format("horizGPS=%.2f", math.sqrt(dxu * dxu + dzu * dzu))
+        line[#line + 1] = string.format("trueBrgXZ=%.1f", math.deg(atan2(dxu, dzu)))
+    end
     print(table.concat(line, "  "))
     sleep(1.0)
 end
