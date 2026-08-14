@@ -43,7 +43,15 @@ Start it with:
 ground/station
 ```
 
-Configure each station with `/station_config.lua` (choose which page it shows, and whether it relays). Only one station should relay so telemetry is not uploaded twice:
+Configuration files are **Lua files that return a table** (not JSON). Templates are installed alongside the code as `/ground/station_config.example.lua` and `/ground/relay_config.example.lua`; copy the one(s) you need and edit.
+
+Configure each station by copying the template:
+
+```lua
+cp /ground/station_config.example.lua /station_config.lua
+```
+
+Choose which page it shows and whether it relays. Only one station should relay so telemetry is not uploaded twice:
 
 ```lua
 return {
@@ -52,7 +60,11 @@ return {
 }
 ```
 
-On the relaying station, put the endpoint and shared secret in `/relay_config.lua`:
+On the relaying station, copy the endpoint template and fill in the endpoint and shared secret:
+
+```lua
+cp /ground/relay_config.example.lua /relay_config.lua
+```
 
 ```lua
 return {
@@ -60,6 +72,8 @@ return {
     apiKey = "<shared-secret>",
 }
 ```
+
+Keep the real `/relay_config.lua` out of version control; it holds a secret.
 
 Use `install all` to install both the aircraft and ground packages on one computer.
 

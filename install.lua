@@ -15,6 +15,8 @@ local TARGETS = {
     ground = {
         "ground/station.lua",
         "ground/relay.lua",
+        "ground/station_config.example.lua",
+        "ground/relay_config.example.lua",
     },
 }
 
