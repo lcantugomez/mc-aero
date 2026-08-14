@@ -29,21 +29,27 @@ local CONFIG = {
     maxBuffer = 400,
 }
 
-local function loadOverrides(path)
-    if not fs.exists(path) then return nil end
-    local ok, result = pcall(dofile, path)
-    if ok and type(result) == "table" then return result end
-    print("station: ignoring invalid " .. path)
+-- Load config from the first file that exists. Copy the templates in
+-- ground/ to one of these paths (computer root, or next to this script).
+local function loadConfig(paths)
+    for _, path in ipairs(paths) do
+        if fs.exists(path) then
+            local ok, result = pcall(dofile, path)
+            if ok and type(result) == "table" then return result, path end
+            print("station: ignoring invalid " .. path)
+        end
+    end
     return nil
 end
 
-local overrides = loadOverrides("/station_config.lua")
+local overrides, overridePath = loadConfig({ "/station_config.lua", "/ground/station_config.lua" })
 if overrides then
     for key, value in pairs(overrides) do CONFIG[key] = value end
+    print("station: loaded config from " .. overridePath)
 end
 -- fall back to a shared relay config for the endpoint/secret
 if CONFIG.endpoint:find("REPLACE_ME") or CONFIG.apiKey == "REPLACE_WITH_SECRET" then
-    local relayCfg = loadOverrides("/relay_config.lua")
+    local relayCfg = loadConfig({ "/relay_config.lua", "/ground/relay_config.lua" })
     if relayCfg then
         CONFIG.endpoint = relayCfg.endpoint or CONFIG.endpoint
         CONFIG.apiKey = relayCfg.apiKey or CONFIG.apiKey

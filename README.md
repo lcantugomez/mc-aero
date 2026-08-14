@@ -43,7 +43,7 @@ Start it with:
 ground/station
 ```
 
-Configuration files are **Lua files that return a table** (not JSON). Templates are installed alongside the code as `/ground/station_config.example.lua` and `/ground/relay_config.example.lua`; copy the one(s) you need and edit.
+Configuration files are **Lua files that return a table** (not JSON). Templates are installed alongside the code as `/ground/station_config.example.lua` and `/ground/relay_config.example.lua`; copy the one(s) you need and edit. Each program loads config from the computer root (`/station_config.lua`, `/relay_config.lua`) or from `/ground/` next to the code, whichever exists, and prints which file it loaded on startup.
 
 Configure each station by copying the template:
 

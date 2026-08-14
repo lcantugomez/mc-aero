@@ -15,18 +15,27 @@ local FLUSH_INTERVAL = 1.0 -- seconds between POSTs
 local MAX_BATCH = 40 -- records per POST
 local MAX_BUFFER = 400 -- cap buffered records (bounds memory)
 
--- Keep secrets out of the committed script: optionally override from a
--- local file that you do NOT commit.
---   /relay_config.lua ->  return { endpoint = "...", apiKey = "...", protocol = "..." }
-if fs.exists("/relay_config.lua") then
-    local ok, override = pcall(dofile, "/relay_config.lua")
-    if ok and type(override) == "table" then
-        ENDPOINT = override.endpoint or ENDPOINT
-        API_KEY = override.apiKey or API_KEY
-        PROTOCOL = override.protocol or PROTOCOL
-    else
-        print("relay: ignoring invalid /relay_config.lua")
+-- Keep secrets out of the committed script: override from a config file you do
+-- NOT commit. Copy ground/relay_config.example.lua to one of these paths:
+--   /relay_config.lua        (computer root)
+--   /ground/relay_config.lua (next to this script)
+local function loadConfig(paths)
+    for _, path in ipairs(paths) do
+        if fs.exists(path) then
+            local ok, result = pcall(dofile, path)
+            if ok and type(result) == "table" then return result, path end
+            print("relay: ignoring invalid " .. path)
+        end
     end
+    return nil
+end
+
+local cfg, cfgPath = loadConfig({ "/relay_config.lua", "/ground/relay_config.lua" })
+if cfg then
+    ENDPOINT = cfg.endpoint or ENDPOINT
+    API_KEY = cfg.apiKey or API_KEY
+    PROTOCOL = cfg.protocol or PROTOCOL
+    print("relay: loaded config from " .. cfgPath)
 end
 -- --------------------------------------------------------------------------
 
