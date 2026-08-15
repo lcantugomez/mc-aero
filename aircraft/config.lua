@@ -58,9 +58,9 @@ local config = {
             "gyroscopic_propeller_bearing_3",
             "gyroscopic_propeller_bearing_4",
             "gyroscopic_propeller_bearing_5",
+            "gyroscopic_propeller_bearing_6",
         },
         propellerBearings = {
-            "propeller_bearing_0",
             "propeller_bearing_1",
         },
         gearshifts = {
