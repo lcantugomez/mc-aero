@@ -1,6 +1,6 @@
 local config = {
     version = "0.1.0",
-    loopPeriod = 0.10,
+    loopPeriod = 0.05,   -- control/input rate (20 Hz = one game tick, minimum latency)
     displayPeriod = 0.20,
     mode = "manual",
 

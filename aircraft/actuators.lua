@@ -121,6 +121,7 @@ function Actuators:setAxisTarget(axis, value)
     local name = self.rsc[axis]
     if not name then return false, "unknown axis: " .. tostring(axis) end
     local target = clampAxis(self, axis, value)
+    if self.commanded[axis] == target then return true, nil end -- unchanged: skip the write
     local _, commandError = self.util.call(name, "setTargetSpeed", target)
     if commandError then return false, commandError end
     self.commanded[axis] = target

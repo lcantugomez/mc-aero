@@ -53,49 +53,60 @@ local function run()
     local telemetryError = telemetry.error
 
     while true do
-        local loopStarted = util.nowMs()
+        -- Fast control path: sample input and command the RSCs every tick.
         local manualInput = actuators:apply(config.mode)
-        local sensorState = sensors:read()
-        local actuatorState = actuators:read()
-
-        local errors = {}
-        util.mergeErrors(errors, sensorState.errors)
-        util.mergeErrors(errors, actuatorState.errors)
-        if manualInput.error then errors["manual.input"] = manualInput.error end
-        if manualInput.commandError then errors["manual.command"] = manualInput.commandError end
-        if manualInput.axisErrors then util.mergeErrors(errors, manualInput.axisErrors) end
-
-        local snapshot = {
-            schema = "mc_aero.telemetry.v1",
-            version = config.version,
-            timestampMs = util.nowMs(),
-            computerId = os.getComputerID(),
-            mode = config.mode,
-            manualInput = manualInput,
-            sensors = sensorState,
-            actuators = actuatorState,
-            errors = errors,
-            errorCount = util.count(errors),
-            telemetryError = telemetryError,
-            physics = physics,
-        }
-        snapshot.loopDurationMs = util.nowMs() - loopStarted
 
         local now = util.nowMs()
-        if now >= nextTelemetry then
-            local ok, sendError = telemetry:broadcast(snapshot)
-            telemetryError = ok and nil or sendError
-            snapshot.telemetryError = telemetryError
-            nextTelemetry = now + math.floor(config.telemetry.period * 1000)
-        end
-        if now >= nextDisplay then
-            display:update(snapshot)
-            nextDisplay = now + math.floor(config.displayPeriod * 1000)
-        end
-        if logger.enabled and now >= nextLog then
-            local _, logError = logger:write(snapshot)
-            if logError then errors["logger"] = logError end
-            nextLog = now + math.floor(config.logging.period * 1000)
+        local doTelemetry = now >= nextTelemetry
+        local doDisplay = now >= nextDisplay
+        local doLog = logger.enabled and now >= nextLog
+
+        -- Slow monitoring path: only read all sensors/actuators and build the
+        -- snapshot when telemetry, display, or logging is actually due. This
+        -- keeps the ~50 peripheral reads off the per-tick control path.
+        if doTelemetry or doDisplay or doLog then
+            local readStarted = util.nowMs()
+            local sensorState = sensors:read()
+            local actuatorState = actuators:read()
+
+            local errors = {}
+            util.mergeErrors(errors, sensorState.errors)
+            util.mergeErrors(errors, actuatorState.errors)
+            if manualInput.error then errors["manual.input"] = manualInput.error end
+            if manualInput.commandError then errors["manual.command"] = manualInput.commandError end
+            if manualInput.axisErrors then util.mergeErrors(errors, manualInput.axisErrors) end
+
+            local snapshot = {
+                schema = "mc_aero.telemetry.v1",
+                version = config.version,
+                timestampMs = util.nowMs(),
+                computerId = os.getComputerID(),
+                mode = config.mode,
+                manualInput = manualInput,
+                sensors = sensorState,
+                actuators = actuatorState,
+                errors = errors,
+                errorCount = util.count(errors),
+                telemetryError = telemetryError,
+                physics = physics,
+            }
+            snapshot.loopDurationMs = util.nowMs() - readStarted
+
+            if doTelemetry then
+                local ok, sendError = telemetry:broadcast(snapshot)
+                telemetryError = ok and nil or sendError
+                snapshot.telemetryError = telemetryError
+                nextTelemetry = now + math.floor(config.telemetry.period * 1000)
+            end
+            if doDisplay then
+                display:update(snapshot)
+                nextDisplay = now + math.floor(config.displayPeriod * 1000)
+            end
+            if doLog then
+                local _, logError = logger:write(snapshot)
+                if logError then errors["logger"] = logError end
+                nextLog = now + math.floor(config.logging.period * 1000)
+            end
         end
 
         nextTick = nextTick + math.floor(config.loopPeriod * 1000)
