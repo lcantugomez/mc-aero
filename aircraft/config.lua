@@ -27,11 +27,15 @@ local config = {
         textScale = 0.5,
     },
 
-    gps = {
-        enabled = true,         -- read absolute position from a CC GPS constellation
-        period = 1.0,           -- seconds between gps.locate() calls (it blocks, so not every tick)
-        timeout = 0.3,          -- max seconds to wait for a fix
-        useAltitudeForY = true, -- GPS Y is unreliable on this build; use altitude height instead
+    -- Absolute position from the navigation table's lodestone + altimeter.
+    -- X/Z are reconstructed from bearing/distance to the bound lodestone;
+    -- Y comes from the altimeter (nav vertical offset / GPS Y are unreliable).
+    -- No GPS constellation needed at runtime, so nothing blocks the loop.
+    position = {
+        enabled = true,
+        lodestone = { x = -30, z = 1046 }, -- world X/Z of the bound lodestone
+        -- worldBearing = heading - bearing + bearingOffsetDeg (calibrated ~0)
+        bearingOffsetDeg = 0,
     },
 
     peripherals = {

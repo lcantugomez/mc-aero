@@ -79,6 +79,15 @@ function Display:update(snapshot)
         flight[#flight + 1] = "Bearing: " .. self.util.oneLine(navigation.getBearing)
         flight[#flight + 1] = "Vertical offset: " .. self.util.oneLine(navigation.getVerticalOffsetToTarget)
     end
+    local position = sensors.position
+    if position and position.valid then
+        flight[#flight + 1] = string.format(
+            "Pos: %.1f, %.1f, %.1f",
+            position.x or 0, position.y or 0, position.z or 0
+        )
+    elseif position then
+        flight[#flight + 1] = "Pos: " .. (position.reason or "unavailable")
+    end
     flight[#flight + 1] = string.format(
         "Loop %.1f ms  Errors %d",
         snapshot.loopDurationMs or 0,

@@ -143,6 +143,13 @@ local function buildFlight(snap)
         lines[#lines + 1] = "Distance: " .. oneLine(nav.getDistanceToTarget)
         lines[#lines + 1] = "Bearing: " .. oneLine(nav.getBearing)
     end
+    local position = sensors.position
+    if position and position.valid then
+        lines[#lines + 1] = string.format("Pos: %.1f, %.1f, %.1f",
+            position.x or 0, position.y or 0, position.z or 0)
+    elseif position then
+        lines[#lines + 1] = "Pos: " .. (position.reason or "unavailable")
+    end
     lines[#lines + 1] = string.format("Loop %s ms  Errors %s",
         oneLine(snap.loopDurationMs), oneLine(snap.errorCount))
     return "MC AERO - FLIGHT", lines

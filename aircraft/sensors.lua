@@ -96,7 +96,48 @@ function Sensors:read()
     state.navigation = navigation
     util.mergeErrors(state.errors, navigationErrors)
 
+    state.position = self:computePosition(navigation, state.altitude.height)
+
     return state
+end
+
+-- Reconstruct absolute world position from the navigation table + altimeter.
+-- Calibrated convention (0deg = +Z south, 90deg = +X east, clockwise):
+--   worldBearing = heading - bearing + bearingOffsetDeg
+--   horiz        = sqrt(distance^2 - verticalOffset^2)   (distance is slant range)
+--   x = lodestone.x - horiz * sin(worldBearing)
+--   z = lodestone.z - horiz * cos(worldBearing)
+--   y = altimeter height
+-- The reconstructed point is the navigation table's location on the craft.
+function Sensors:computePosition(navigation, height)
+    local cfg = self.config.position
+    if not cfg or not cfg.enabled then return nil end
+
+    local pos = { valid = false, y = height }
+    if navigation.hasTarget ~= true then
+        pos.reason = "no navigation target"
+        return pos
+    end
+
+    local dist = tonumber(navigation.getDistanceToTarget)
+    local vOff = tonumber(navigation.getVerticalOffsetToTarget)
+    local bearing = tonumber(navigation.getBearing)
+    local heading = tonumber(navigation.getHeading)
+    if not (dist and vOff and bearing and heading) then
+        pos.reason = "incomplete navigation data"
+        return pos
+    end
+
+    local squared = dist * dist - vOff * vOff
+    local horiz = squared > 0 and math.sqrt(squared) or 0
+    local theta = math.rad(heading - bearing + (cfg.bearingOffsetDeg or 0))
+
+    pos.x = cfg.lodestone.x - horiz * math.sin(theta)
+    pos.z = cfg.lodestone.z - horiz * math.cos(theta)
+    pos.y = height
+    pos.horizontal = horiz
+    pos.valid = true
+    return pos
 end
 
 return Sensors
