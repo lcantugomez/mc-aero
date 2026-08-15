@@ -58,10 +58,16 @@ local function callOr(nm, method)
     return "err"
 end
 
--- Fill in your lodestone's world coordinates (F3 on the lodestone block).
-local LODESTONE = { x = 0, y = 0, z = 0 }
+-- Your lodestone's world coordinates (F3 on the lodestone block).
+local LODESTONE = { x = -30, y = 112, z = 1046 }
 
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
+
+local function norm360(a)
+    a = a % 360
+    if a < 0 then a = a + 360 end
+    return a
+end
 
 local function numOf(nm, method)
     if not nm then return nil end
@@ -75,6 +81,7 @@ while true do
     local dist = present.getDistanceToTarget and numOf(name, "getDistanceToTarget") or nil
     local voff = present.getVerticalOffsetToTarget and numOf(name, "getVerticalOffsetToTarget") or nil
     local bearing = present.getBearing and numOf(name, "getBearing") or nil
+    local heading = present.getHeading and numOf(name, "getHeading") or nil
     local height = altName and numOf(altName, "getHeight") or nil
 
     local line = {
@@ -82,19 +89,22 @@ while true do
         "height=" .. tostring(height),
         "dist=" .. tostring(dist),
         "vOff=" .. tostring(voff),
-        "bearing=" .. tostring(bearing),
+        "brg=" .. tostring(bearing),
+        "hdg=" .. tostring(heading),
     }
-    -- horizontal range from the slant/vertical triangle
     if dist and voff then
         local h2 = dist * dist - voff * voff
         line[#line + 1] = string.format("horizNav=%.2f", h2 > 0 and math.sqrt(h2) or 0)
     end
-    -- truth from GPS: horizontal range + geometric bearing to the lodestone,
-    -- so we can compare against the nav table's bearing and lock the convention.
     if gx and gz then
         local dxu, dzu = LODESTONE.x - gx, LODESTONE.z - gz
+        local trueBrg = norm360(math.deg(atan2(dxu, dzu))) -- 0=+Z, 90=+X, CW
         line[#line + 1] = string.format("horizGPS=%.2f", math.sqrt(dxu * dxu + dzu * dzu))
-        line[#line + 1] = string.format("trueBrgXZ=%.1f", math.deg(atan2(dxu, dzu)))
+        line[#line + 1] = string.format("trueBrg=%.1f", trueBrg)
+        if bearing then line[#line + 1] = string.format("dNo=%.1f", norm360(trueBrg - bearing)) end
+        if bearing and heading then
+            line[#line + 1] = string.format("dHd=%.1f", norm360(trueBrg - bearing - heading))
+        end
     end
     print(table.concat(line, "  "))
     sleep(1.0)
