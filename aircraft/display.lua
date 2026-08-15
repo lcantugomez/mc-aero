@@ -57,7 +57,7 @@ function Display:update(snapshot)
     local altitude = sensors.altitude or {}
     local gimbal = sensors.gimbal or {}
     local flight = {
-        string.format("ID %d  MODE %s  SEQ %d", snapshot.computerId, snapshot.mode, snapshot.sequence),
+        string.format("ID %d  MODE %s", snapshot.computerId, snapshot.mode),
         "Height: " .. self.util.oneLine(altitude.height),
         "Vertical speed: " .. self.util.oneLine(altitude.verticalSpeed),
         "Air pressure: " .. self.util.oneLine(altitude.airPressure),

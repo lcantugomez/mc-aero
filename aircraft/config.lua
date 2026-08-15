@@ -14,11 +14,12 @@ local config = {
         -- stepped target (holds when released, for hover); the other axes are
         -- momentary (return to 0 when released). Swap a pair to invert an axis.
         keys = {
-            liftUp = keys.up,    liftDown = keys.down,     -- main lift (hover thrust)
-            ascend = keys.space, descend = keys.leftShift, -- upDown RSC
-            forward = keys.w,    back = keys.s,            -- forwardBack RSC
-            right = keys.d,      left = keys.a,            -- leftRight RSC
-            yawRight = keys.e,   yawLeft = keys.q,         -- yaw RSC
+            liftUp = keys.up,        liftDown = keys.down,     -- main lift RPM trim
+            mainLiftToggle = keys.space,                       -- main lift on/off
+            ascend = keys.leftShift, descend = keys.leftCtrl,  -- upDown RSC (up / down)
+            forward = keys.w,        back = keys.s,            -- forwardBack RSC
+            right = keys.d,          left = keys.a,            -- leftRight RSC
+            yawRight = keys.e,       yawLeft = keys.q,         -- yaw RSC
         },
     },
 

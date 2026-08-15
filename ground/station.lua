@@ -123,8 +123,7 @@ local function buildFlight(snap)
     local altitude = sensors.altitude or {}
     local gimbal = sensors.gimbal or {}
     local lines = {
-        string.format("ID %s  MODE %s  SEQ %s",
-            oneLine(snap.computerId), tostring(snap.mode), oneLine(snap.sequence)),
+        string.format("ID %s  MODE %s", oneLine(snap.computerId), tostring(snap.mode)),
         "Height: " .. oneLine(altitude.height),
         "Vertical speed: " .. oneLine(altitude.verticalSpeed),
         "Air pressure: " .. oneLine(altitude.airPressure),
@@ -203,7 +202,7 @@ local function buildRaw(snap)
     local lines = {
         "schema: " .. oneLine(snap.schema),
         "version: " .. oneLine(snap.version),
-        "seq: " .. oneLine(snap.sequence) .. "  errors: " .. oneLine(snap.errorCount),
+        "errors: " .. oneLine(snap.errorCount),
         "telemetryError: " .. oneLine(snap.telemetryError),
         "--- ERRORS ---",
     }

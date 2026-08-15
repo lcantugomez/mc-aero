@@ -3,7 +3,6 @@ Logger.__index = Logger
 
 local HEADERS = {
     "timestamp_ms",
-    "sequence",
     "mode",
     "height",
     "vertical_speed",
@@ -65,7 +64,6 @@ function Logger:write(snapshot)
     local altitude, gimbal = sensors.altitude or {}, sensors.gimbal or {}
     local row = {
         snapshot.timestampMs,
-        snapshot.sequence,
         snapshot.mode,
         altitude.height,
         altitude.verticalSpeed,

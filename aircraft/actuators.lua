@@ -88,6 +88,8 @@ function Actuators.new(config, util)
         self.targetLiftRpm = util.clamp(currentTarget, config.manual.minLiftRpm, config.manual.maxLiftRpm)
     end
     self.commanded.mainLift = self.targetLiftRpm
+    self.liftEnabled = (self.targetLiftRpm or 0) > 0 -- reflects preserved target
+    self.prevToggle = false
 
     -- Cache static bearing metadata (geometry) once.
     for _, bearing in ipairs(names.bearings) do
@@ -122,12 +124,14 @@ function Actuators:setAxisTarget(axis, value)
     local _, commandError = self.util.call(name, "setTargetSpeed", target)
     if commandError then return false, commandError end
     self.commanded[axis] = target
-    if axis == "mainLift" then self.targetLiftRpm = target end
     return true, nil
 end
 
+-- Sets the main-lift trim and commands it (enabling lift). For programmatic use.
 function Actuators:setLiftTarget(value)
-    return self:setAxisTarget("mainLift", value)
+    self.targetLiftRpm = clampAxis(self, "mainLift", value)
+    self.liftEnabled = self.targetLiftRpm > 0
+    return self:setAxisTarget("mainLift", self.targetLiftRpm)
 end
 
 function Actuators:updateManual()
@@ -150,11 +154,19 @@ function Actuators:updateManual()
     end
     local function held(code) return code ~= nil and down[code] == true end
 
-    -- main lift: persistent stepped target (holds for hover)
+    -- main lift: arrows trim a persistent setpoint; toggle key switches it on/off
     if held(km.liftUp) then input.delta = input.delta + manual.liftStep end
     if held(km.liftDown) then input.delta = input.delta - manual.liftStep end
-    local ok, commandError = self:setLiftTarget(self.targetLiftRpm + input.delta)
+    self.targetLiftRpm = self.util.clamp(
+        self.targetLiftRpm + input.delta, manual.minLiftRpm, manual.maxLiftRpm)
+
+    local togglePressed = held(km.mainLiftToggle)
+    if togglePressed and not self.prevToggle then self.liftEnabled = not self.liftEnabled end
+    self.prevToggle = togglePressed
+
+    local ok, commandError = self:setAxisTarget("mainLift", self.liftEnabled and self.targetLiftRpm or 0)
     input.targetLiftRpm = self.targetLiftRpm
+    input.liftEnabled = self.liftEnabled
     if not ok then input.commandError = commandError end
 
     -- directional axes: momentary (0 when released)

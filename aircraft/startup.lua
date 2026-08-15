@@ -46,7 +46,6 @@ if logger.error then print("[WARN] logger: " .. logger.error) end
 if logger.enabled then print("Logging to " .. logger.path) end
 
 local function run()
-    local sequence = 0
     local nextDisplay = 0
     local nextTelemetry = 0
     local nextLog = 0
@@ -71,7 +70,6 @@ local function run()
             version = config.version,
             timestampMs = util.nowMs(),
             computerId = os.getComputerID(),
-            sequence = sequence,
             mode = config.mode,
             manualInput = manualInput,
             sensors = sensorState,
@@ -100,7 +98,6 @@ local function run()
             nextLog = now + math.floor(config.logging.period * 1000)
         end
 
-        sequence = sequence + 1
         nextTick = nextTick + math.floor(config.loopPeriod * 1000)
         local remaining = nextTick - util.nowMs()
         if remaining < 0 then
