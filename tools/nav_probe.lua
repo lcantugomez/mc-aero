@@ -104,6 +104,8 @@ while true do
         if bearing then line[#line + 1] = string.format("dNo=%.1f", norm360(trueBrg - bearing)) end
         if bearing and heading then
             line[#line + 1] = string.format("dHd=%.1f", norm360(trueBrg - bearing - heading))
+            -- residual for the worldBrg = heading - bearing hypothesis
+            line[#line + 1] = string.format("dHB=%.1f", norm360(trueBrg - heading + bearing))
         end
     end
     print(table.concat(line, "  "))
