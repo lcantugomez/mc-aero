@@ -157,22 +157,18 @@ end
 
 local function buildSystems(snap)
     local actuators = snap.actuators or {}
-    local rsc = actuators.liftController or {}
-    local lines = {
-        "Commanded: " .. oneLine(rsc.commandedSpeed),
-        "RSC target: " .. oneLine(rsc.getTargetSpeed),
-        "RSC actual: " .. oneLine(rsc.getSpeed),
-        "RSC source: " .. oneLine(rsc.hasSource) .. "  overstress: " .. oneLine(rsc.isOverstressed),
-        "--- PROPELLERS ---",
-    }
-    for _, b in ipairs(actuators.bearings or {}) do
-        lines[#lines + 1] = string.format("%s T=%s RPM=%s A=%s",
-            shortName(b.name), oneLine(b.getThrust), oneLine(b.getRotationSpeed), oneLine(b.isActive))
+    local rscState = actuators.rsc or {}
+    local lines = { "--- RSC  target / actual ---" }
+    for _, axis in ipairs({ "mainLift", "upDown", "forwardBack", "leftRight", "yaw" }) do
+        local r = rscState[axis] or {}
+        lines[#lines + 1] = string.format("%-11s %s / %s%s",
+            axis, oneLine(r.getTargetSpeed), oneLine(r.getSpeed),
+            r.isOverstressed == true and " OVS" or "")
     end
-    lines[#lines + 1] = "--- GEARSHIFTS (read only) ---"
-    for _, g in ipairs(actuators.gearshifts or {}) do
-        lines[#lines + 1] = string.format("%s L=%s R=%s speed=%s",
-            shortName(g.name), oneLine(g.isLeftPowered), oneLine(g.isRightPowered), oneLine(g.getSpeed))
+    lines[#lines + 1] = "--- PROPELLERS  thrust / rpm ---"
+    for _, b in ipairs(actuators.bearings or {}) do
+        lines[#lines + 1] = string.format("%s %s / %s",
+            b.role or shortName(b.name), oneLine(b.getThrust), oneLine(b.getRotationSpeed))
     end
     if snap.manualInput then lines[#lines + 1] = "Input delta: " .. oneLine(snap.manualInput.delta) end
     return "MC AERO - SYSTEMS", lines

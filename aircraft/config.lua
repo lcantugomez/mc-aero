@@ -7,7 +7,19 @@ local config = {
     manual = {
         minLiftRpm = 0,
         maxLiftRpm = 256,
-        liftStep = 1,
+        liftStep = 4,   -- main-lift RPM change per tick while Up/Down held
+        moveRpm = 256,  -- RPM applied to a directional axis while its key is held
+
+        -- Typewriter key bindings (CC key codes). Main lift is a persistent
+        -- stepped target (holds when released, for hover); the other axes are
+        -- momentary (return to 0 when released). Swap a pair to invert an axis.
+        keys = {
+            liftUp = keys.up,    liftDown = keys.down,     -- main lift (hover thrust)
+            ascend = keys.space, descend = keys.leftShift, -- upDown RSC
+            forward = keys.w,    back = keys.s,            -- forwardBack RSC
+            right = keys.d,      left = keys.a,            -- leftRight RSC
+            yawRight = keys.e,   yawLeft = keys.q,         -- yaw RSC
+        },
     },
 
     telemetry = {
@@ -48,27 +60,30 @@ local config = {
             "velocity_sensor_2",
         },
         typewriter = "linked_typewriter_0",
-        liftController = "Create_RotationSpeedController_1",
         flightMonitor = "monitor_0",
         systemMonitor = "monitor_1",
-        gyroscopicBearings = {
-            "gyroscopic_propeller_bearing_0",
-            "gyroscopic_propeller_bearing_1",
-            "gyroscopic_propeller_bearing_2",
-            "gyroscopic_propeller_bearing_3",
-            "gyroscopic_propeller_bearing_4",
-            "gyroscopic_propeller_bearing_5",
-            "gyroscopic_propeller_bearing_6",
+        physicsAssembler = "physics_assembler_0",
+
+        -- Rotation Speed Controllers, one continuously-variable RSC per axis.
+        rsc = {
+            mainLift    = "Create_RotationSpeedController_1", -- gyro_1 + gyro_2 lift pair
+            forwardBack = "Create_RotationSpeedController_2", -- propeller_bearing_1
+            yaw         = "Create_RotationSpeedController_3", -- gyro_0 + gyro_4
+            leftRight   = "Create_RotationSpeedController_4", -- gyro_3 + gyro_6
+            upDown      = "Create_RotationSpeedController_5", -- gyro_5
         },
-        propellerBearings = {
-            "propeller_bearing_1",
-        },
-        gearshifts = {
-            "directional_gearshift_1",
-            "directional_gearshift_2",
-            "directional_gearshift_3",
-            "directional_gearshift_4",
-            "directional_gearshift_5",
+
+        -- Propeller bearings with their control role. gyro = true means it also
+        -- exposes tilt/stabilization (setManualTarget/getTiltAngle).
+        bearings = {
+            { name = "gyroscopic_propeller_bearing_1", role = "main_lift_left",    gyro = true },
+            { name = "gyroscopic_propeller_bearing_2", role = "main_lift_right",   gyro = true },
+            { name = "gyroscopic_propeller_bearing_5", role = "up_down",           gyro = true },
+            { name = "gyroscopic_propeller_bearing_3", role = "translation_right", gyro = true },
+            { name = "gyroscopic_propeller_bearing_6", role = "translation_left",  gyro = true },
+            { name = "gyroscopic_propeller_bearing_0", role = "yaw_left",          gyro = true },
+            { name = "gyroscopic_propeller_bearing_4", role = "yaw_right",         gyro = true },
+            { name = "propeller_bearing_1",            role = "forward_back",      gyro = false },
         },
     },
 }

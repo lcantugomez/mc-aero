@@ -17,6 +17,18 @@ local telemetry = Telemetry.new(config)
 local display = Display.new(config, util)
 local logger = Logger.new(config)
 
+-- The physics assembler exposes mass, inertia tensor, and center of mass
+-- directly (constant while assembled), so read them once at startup.
+local function readPhysics()
+    local pa = config.peripherals.physicsAssembler
+    return {
+        mass = util.call(pa, "getMass"),
+        inertiaTensor = util.call(pa, "getInertiaTensor"),
+        centerOfMass = util.call(pa, "getCenterOfMass"),
+    }
+end
+local physics = readPhysics()
+
 local function printWarnings(label, warnings)
     for _, warning in ipairs(warnings or {}) do
         print("[WARN] " .. label .. ": " .. warning)
@@ -52,6 +64,7 @@ local function run()
         util.mergeErrors(errors, actuatorState.errors)
         if manualInput.error then errors["manual.input"] = manualInput.error end
         if manualInput.commandError then errors["manual.command"] = manualInput.commandError end
+        if manualInput.axisErrors then util.mergeErrors(errors, manualInput.axisErrors) end
 
         local snapshot = {
             schema = "mc_aero.telemetry.v1",
@@ -66,6 +79,7 @@ local function run()
             errors = errors,
             errorCount = util.count(errors),
             telemetryError = telemetryError,
+            physics = physics,
         }
         snapshot.loopDurationMs = util.nowMs() - loopStarted
 

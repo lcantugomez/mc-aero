@@ -13,12 +13,10 @@ local HEADERS = {
     "linear_acceleration",
     "gravity",
     "velocities",
-    "rsc_commanded_speed",
-    "rsc_target_speed",
-    "rsc_actual_speed",
+    "rsc",
     "bearings",
-    "gearshifts",
     "navigation",
+    "position",
     "errors",
 }
 
@@ -65,7 +63,6 @@ function Logger:write(snapshot)
     if not self.enabled or not self.file then return false, self.error end
     local sensors, actuators = snapshot.sensors, snapshot.actuators
     local altitude, gimbal = sensors.altitude or {}, sensors.gimbal or {}
-    local rsc = actuators.liftController or {}
     local row = {
         snapshot.timestampMs,
         snapshot.sequence,
@@ -78,12 +75,10 @@ function Logger:write(snapshot)
         gimbal.getLinearAcceleration,
         gimbal.getGravity,
         sensors.velocity,
-        rsc.commandedSpeed,
-        rsc.getTargetSpeed,
-        rsc.getSpeed,
+        actuators.rsc,
         actuators.bearings,
-        actuators.gearshifts,
         sensors.navigation,
+        sensors.position,
         snapshot.errors,
     }
     for index = 1, #HEADERS do row[index] = csv(row[index]) end

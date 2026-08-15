@@ -94,33 +94,28 @@ function Display:update(snapshot)
         snapshot.errorCount or 0
     )
 
-    local rsc = actuators.liftController or {}
+    local rscState = actuators.rsc or {}
     local system = {
-        "UP/DOWN: main lift +/- " .. tostring(self.config.manual.liftStep) .. " RPM",
-        "Commanded: " .. self.util.oneLine(rsc.commandedSpeed),
-        "RSC target: " .. self.util.oneLine(rsc.getTargetSpeed),
-        "RSC actual: " .. self.util.oneLine(rsc.getSpeed),
-        "RSC source: " .. self.util.oneLine(rsc.hasSource)
-            .. "  overstress: " .. self.util.oneLine(rsc.isOverstressed),
-        "--- PROPELLERS ---",
+        "MAIN LIFT +/- " .. tostring(self.config.manual.liftStep) .. " RPM (Up/Down)",
+        "--- RSC  target / actual ---",
     }
-    for _, bearing in ipairs(actuators.bearings or {}) do
+    for _, axis in ipairs({ "mainLift", "upDown", "forwardBack", "leftRight", "yaw" }) do
+        local r = rscState[axis] or {}
         system[#system + 1] = string.format(
-            "%s T=%s RPM=%s A=%s",
-            shortName(bearing.name),
-            self.util.oneLine(bearing.getThrust),
-            self.util.oneLine(bearing.getRotationSpeed),
-            self.util.oneLine(bearing.isActive)
+            "%-11s %s / %s%s",
+            axis,
+            self.util.oneLine(r.getTargetSpeed),
+            self.util.oneLine(r.getSpeed),
+            r.isOverstressed == true and " OVS" or ""
         )
     end
-    system[#system + 1] = "--- GEARSHIFTS (read only) ---"
-    for _, gearshift in ipairs(actuators.gearshifts or {}) do
+    system[#system + 1] = "--- PROPELLERS  thrust / rpm ---"
+    for _, bearing in ipairs(actuators.bearings or {}) do
         system[#system + 1] = string.format(
-            "%s L=%s R=%s speed=%s",
-            shortName(gearshift.name),
-            self.util.oneLine(gearshift.isLeftPowered),
-            self.util.oneLine(gearshift.isRightPowered),
-            self.util.oneLine(gearshift.getSpeed)
+            "%s %s / %s",
+            bearing.role or shortName(bearing.name),
+            self.util.oneLine(bearing.getThrust),
+            self.util.oneLine(bearing.getRotationSpeed)
         )
     end
     system[#system + 1] = "Input delta: " .. self.util.oneLine(snapshot.manualInput.delta)
