@@ -11,6 +11,7 @@ local TARGETS = {
         "aircraft/display.lua",
         "aircraft/logger.lua",
         "aircraft/startup.lua",
+        "aircraft/sweep.lua",
     },
     ground = {
         "ground/station.lua",
@@ -18,20 +19,26 @@ local TARGETS = {
         "ground/station_config.example.lua",
         "ground/relay_config.example.lua",
     },
+    pocket = {
+        "ground/pocket.lua",
+        "ground/relay_config.example.lua",
+    },
 }
 
 local RUN_HINT = {
     aircraft = "aircraft/startup",
     ground = "ground/station",
+    pocket = "ground/pocket",
 }
 
 local arguments = { ... }
 local target = arguments[1] or "aircraft"
 if target == "help" or target == "--help" then
-    print("Usage: install [aircraft|ground|all]")
+    print("Usage: install [aircraft|ground|pocket|all]")
     print("  aircraft  flight computer package (default)")
     print("  ground    base telemetry station + relay")
-    print("  all       both packages")
+    print("  pocket    pocket-computer relay + mini display")
+    print("  all       aircraft + ground packages")
     return
 end
 

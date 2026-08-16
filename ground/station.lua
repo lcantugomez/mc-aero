@@ -177,24 +177,28 @@ end
 -- the bearing/RSC ratio (steady-state gain), plus overstress flags.
 local function buildSignals(snap)
     local actuators = snap.actuators or {}
-    local rsc = actuators.liftController or {}
-    local target = tonumber(rsc.getTargetSpeed)
-    local lines = {
-        "RSC target : " .. oneLine(rsc.getTargetSpeed),
-        "RSC actual : " .. oneLine(rsc.getSpeed),
-        "Overstress : " .. oneLine(rsc.isOverstressed),
-        "--- BEARINGS  rpm / thrust / ratio ---",
-    }
+    local rscState = actuators.rsc or {}
+    local lines = { "--- RSC  target / actual ---" }
+    for _, axis in ipairs({ "mainLift", "upDown", "forwardBack", "leftRight", "yaw" }) do
+        local r = rscState[axis] or {}
+        lines[#lines + 1] = string.format("%-11s %s / %s", axis,
+            oneLine(r.getTargetSpeed), oneLine(r.getSpeed))
+    end
+    if snap.sweep then
+        lines[#lines + 1] = string.format("SWEEP %s -> %s",
+            tostring(snap.sweep.axis), oneLine(snap.sweep.target))
+    end
+    lines[#lines + 1] = "--- BEARINGS  rpm  T  k=T/rpm ---"
     local totalThrust = 0
     for _, b in ipairs(actuators.bearings or {}) do
         local rpm = tonumber(b.getRotationSpeed)
         local thrust = tonumber(b.getThrust)
         if thrust then totalThrust = totalThrust + thrust end
-        local ratio = (rpm and target and target ~= 0) and string.format("%.3f", rpm / target) or "-"
-        lines[#lines + 1] = string.format("%s rpm=%s T=%s k=%s",
-            shortName(b.name), oneLine(b.getRotationSpeed), oneLine(b.getThrust), ratio)
+        local k = (rpm and thrust and math.abs(rpm) > 1e-6) and string.format("%.1f", thrust / rpm) or "-"
+        lines[#lines + 1] = string.format("%s %s %s k=%s",
+            b.role or shortName(b.name), oneLine(b.getRotationSpeed), oneLine(b.getThrust), k)
     end
-    lines[#lines + 1] = string.format("Total thrust: %.3f", totalThrust)
+    lines[#lines + 1] = string.format("Total thrust: %.2f", totalThrust)
     return "MC AERO - SIGNALS", lines
 end
 

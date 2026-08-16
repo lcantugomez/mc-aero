@@ -72,17 +72,19 @@ def main(directory):
         print(f"sequence range = {min(seqs)} .. {max(seqs)}   non-contiguous steps = {gaps}")
     print("modes:", sorted({str(r.get("mode")) for r in records}))
 
-    # --- RSC ---------------------------------------------------------------
-    def rsc_field(field):
-        return rng([as_number((r.get("actuators") or {}).get("liftController", {}).get(field)) for r in records])
+    # --- RSCs (per axis) ---------------------------------------------------
+    axes = ["mainLift", "forwardBack", "yaw", "leftRight", "upDown"]
 
-    print("\n--- MAIN LIFT (RSC) ---")
-    print("  commandedSpeed:", fmt_rng(rsc_field("commandedSpeed")))
-    print("  getTargetSpeed:", fmt_rng(rsc_field("getTargetSpeed")))
-    print("  getSpeed      :", fmt_rng(rsc_field("getSpeed")))
-    tgt = rsc_field("getTargetSpeed")
-    if tgt and abs(tgt[1] - tgt[0]) < 1e-6:
-        print(f"  -> RSC target held constant at {tgt[0]:.1f} (main lift untouched)")
+    def rsc_field(axis, field):
+        return rng([
+            as_number((r.get("actuators") or {}).get("rsc", {}).get(axis, {}).get(field))
+            for r in records
+        ])
+
+    print("\n--- RSCs (target / actual ranges) ---")
+    for axis in axes:
+        print(f"  {axis:12s} target[{fmt_rng(rsc_field(axis, 'getTargetSpeed'))}]"
+              f"  actual[{fmt_rng(rsc_field(axis, 'getSpeed'))}]")
 
     # --- bearings ----------------------------------------------------------
     rpm = defaultdict(list)
@@ -98,24 +100,42 @@ def main(directory):
     for name in sorted(rpm):
         print(f"  {name:32s} rpm[{fmt_rng(rng(rpm[name]))}]  thrust[{fmt_rng(rng(thrust[name]))}]  active={sorted(str(x) for x in active[name])}")
 
-    # --- gearshifts --------------------------------------------------------
-    gs_speed = defaultdict(list)
-    gs_left = defaultdict(set)
-    gs_right = defaultdict(set)
-    gs_mode = defaultdict(set)
-    gs_axis = defaultdict(set)
-    for r in records:
-        for g in (r.get("actuators") or {}).get("gearshifts", []) or []:
-            name = g.get("name", "?")
-            gs_speed[name].append(as_number(g.get("getSpeed")))
-            gs_left[name].add(g.get("isLeftPowered"))
-            gs_right[name].add(g.get("isRightPowered"))
-            gs_mode[name].add(str(g.get("getMode")))
-            gs_axis[name].add(str(g.get("getSourceAxis")))
-    print("\n--- GEARSHIFTS (directional controls used this run) ---")
-    for name in sorted(gs_speed):
-        used = (True in gs_left[name]) or (True in gs_right[name])
-        print(f"  {name:26s} speed[{fmt_rng(rng(gs_speed[name]))}]  L={sorted(str(x) for x in gs_left[name])} R={sorted(str(x) for x in gs_right[name])}  used={used}")
+    # --- sweep fits (if this capture is an actuator sweep) -----------------
+    sweep_recs = [r for r in records if isinstance(r.get("sweep"), dict)]
+    if sweep_recs:
+        print("\n--- SWEEP: settled command -> bearing response (G = rpm/target, k = thrust/rpm) ---")
+        groups = defaultdict(list)
+        for r in sweep_recs:
+            s = r["sweep"]
+            groups[(str(s.get("axis")), as_number(s.get("target")))].append(r)
+        for axis, target in sorted(groups, key=lambda key: (key[0], key[1] or 0)):
+            if not target or target == 0:
+                continue
+            group = groups[(axis, target)]
+            elapsed = [as_number(r["sweep"].get("elapsedMs")) or 0 for r in group]
+            cutoff = 0.5 * max(elapsed) if elapsed else 0
+            settled = [r for r in group if (as_number(r["sweep"].get("elapsedMs")) or 0) >= cutoff]
+            per_bearing = defaultdict(lambda: [[], []])
+            for r in settled:
+                for b in (r.get("actuators") or {}).get("bearings", []) or []:
+                    label = b.get("role") or b.get("name")
+                    rr, tt = as_number(b.get("getRotationSpeed")), as_number(b.get("getThrust"))
+                    if rr is not None:
+                        per_bearing[label][0].append(rr)
+                    if tt is not None:
+                        per_bearing[label][1].append(tt)
+            driven = {
+                nm: v for nm, v in per_bearing.items()
+                if v[0] and abs(sum(v[0]) / len(v[0])) > 1.0
+            }
+            if driven:
+                print(f"  {axis} @ {target:.0f}:")
+                for nm, (rpms, thrusts) in sorted(driven.items()):
+                    mr = sum(rpms) / len(rpms)
+                    mt = (sum(thrusts) / len(thrusts)) if thrusts else float("nan")
+                    g = mr / target
+                    k = mt / mr if abs(mr) > 1e-6 else float("nan")
+                    print(f"    {nm:22s} rpm={mr:8.2f} (G={g:5.2f})  thrust={mt:10.2f}  k={k:8.2f}")
 
     # --- motion ------------------------------------------------------------
     print("\n--- MOTION ---")

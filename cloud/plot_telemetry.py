@@ -57,14 +57,14 @@ def main(indir, outdir):
         return
     t = rel_seconds(recs)
 
-    # ---- RSC ----
-    def rsc(field):
-        return [num((r.get("actuators") or {}).get("liftController", {}).get(field)) for r in recs]
+    # ---- RSC target speed by axis ----
+    axes = ["mainLift", "forwardBack", "yaw", "leftRight", "upDown"]
     fig, ax = plt.subplots(figsize=(11, 4))
-    for field, label in [("getTargetSpeed", "target"), ("getSpeed", "actual"), ("commandedSpeed", "commanded")]:
-        y = rsc(field)
-        ax.plot(t, [v if v is not None else np.nan for v in y], label=label, linewidth=1)
-    ax.set_title("Main lift RSC")
+    for axis in axes:
+        y = [num((r.get("actuators") or {}).get("rsc", {}).get(axis, {}).get("getTargetSpeed")) for r in recs]
+        if any(v is not None for v in y):
+            ax.plot(t, [v if v is not None else np.nan for v in y], label=axis, linewidth=1)
+    ax.set_title("RSC target speed by axis")
     ax.set_xlabel("time (s)"); ax.set_ylabel("rpm"); ax.legend(); ax.grid(True, alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(outdir, "rsc.png"), dpi=110); plt.close(fig)
 
@@ -118,6 +118,42 @@ def main(indir, outdir):
     ax.set_title("Bearing rotation speed vs time"); ax.set_xlabel("time (s)"); ax.set_ylabel("rpm")
     ax.legend(fontsize=7, ncol=2); ax.grid(True, alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(outdir, "bearing_rpm.png"), dpi=110); plt.close(fig)
+
+    # ---- sweep spin-up transients (if this capture is a sweep) ----
+    sweep_recs = [r for r in recs if isinstance(r.get("sweep"), dict)]
+    if sweep_recs:
+        steps = defaultdict(list)
+        for r in sweep_recs:
+            s = r["sweep"]
+            steps[(str(s.get("axis")), num(s.get("target")) or 0)].append(r)
+        # for each axis, take the step to its largest target
+        best_target = {}
+        for axis, target in steps:
+            if target and target > best_target.get(axis, 0):
+                best_target[axis] = target
+        fig, ax = plt.subplots(figsize=(11, 5))
+        for axis, target in sorted(best_target.items()):
+            group = sorted(steps[(axis, target)], key=lambda r: num(r["sweep"].get("elapsedMs")) or 0)
+            series = defaultdict(list)
+            for r in group:
+                e = (num(r["sweep"].get("elapsedMs")) or 0) / 1000.0
+                for b in (r.get("actuators") or {}).get("bearings", []) or []:
+                    rr = num(b.get("getRotationSpeed"))
+                    if rr is not None:
+                        series[b.get("role") or b.get("name")].append((e, rr))
+            # plot the driven bearing with the largest final |rpm|
+            best_b, best_val = None, 0.0
+            for nm, pts in series.items():
+                if pts and abs(pts[-1][1]) > best_val:
+                    best_b, best_val = nm, abs(pts[-1][1])
+            if best_b:
+                pts = series[best_b]
+                ax.plot([p[0] for p in pts], [p[1] for p in pts],
+                        label=f"{axis}: {best_b} -> {target:.0f}", linewidth=1)
+        ax.set_title("Spin-up: bearing rpm vs time since step (largest step per axis)")
+        ax.set_xlabel("time since step (s)"); ax.set_ylabel("rpm")
+        ax.legend(fontsize=7); ax.grid(True, alpha=0.3)
+        fig.tight_layout(); fig.savefig(os.path.join(outdir, "spinup.png"), dpi=110); plt.close(fig)
 
     # thrust vs rpm characterization grid + linear fits
     ncols = 2
