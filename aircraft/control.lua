@@ -139,8 +139,8 @@ function Control:update(sensorState, dt)
         local eVl = eVX * math.cos(psi) - eVZ * math.sin(psi)
         local Kvf = hz.Kvf100 * gainScale
         local Kvl = hz.Kvl100 * gainScale
-        uFB = clamp(Kvf * eVf, -hz.forwardBackMax, hz.forwardBackMax)
-        uLR = clamp(Kvl * eVl, -hz.leftRightMax, hz.leftRightMax)
+        uFB = clamp((hz.forwardBackSign or 1) * Kvf * eVf, -hz.forwardBackMax, hz.forwardBackMax)
+        uLR = clamp((hz.leftRightSign or 1) * Kvl * eVl, -hz.leftRightMax, hz.leftRightMax)
         telemetry.horizontal = {
             xError = eX, zError = eZ, vxCommand = VxCmd, vzCommand = VzCmd,
             bodyForwardVelocityError = eVf, bodyLateralVelocityError = eVl,
@@ -160,7 +160,7 @@ function Control:update(sensorState, dt)
         if type(rates) == "table" then r = tonumber(rates[hd.yawRateIndex or 2]) or 0 end
         r = r * (hd.yawRateSign or 1)
         local erate = rCmd - r
-        uYaw = clamp((hd.KrYaw or 0) * erate, -hd.yawMax, hd.yawMax)
+        uYaw = clamp((hd.yawSign or 1) * (hd.KrYaw or 0) * erate, -hd.yawMax, hd.yawMax)
         telemetry.heading = {
             headingError = epsi, yawRateCommand = rCmd, yawRateError = erate, yawCommand = uYaw,
         }

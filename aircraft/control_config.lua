@@ -41,6 +41,12 @@ return {
     },
 
     horizontal = {
+        -- Axis direction signs (measured Aug-16 open-loop sign test). Thruster
+        -- directions can flip between physics/non-physics states, so re-run the
+        -- sign test and adjust these if behavior inverts.
+        forwardBackSign = -1, -- +forwardBack measured as body-backward
+        leftRightSign = -1,   -- +leftRight measured as body-left
+
         Kpos = 0.30,          -- position -> velocity gain (1/s)
         velocityCmdMax = 2.0, -- blocks/s
         Kvf100 = 12.24,       -- forward/back velocity gain at 100% pressure
@@ -55,8 +61,9 @@ return {
         -- PROVISIONAL: yaw moment/command (K_M) not yet verified (spec section 28).
         -- Heading hold is disabled by default (enable.heading=false); tune before use.
         KrYaw = 40,
+        yawSign = -1,     -- +yaw measured as decreasing heading (sign test)
         yawRateIndex = 2, -- getAngularRatesRad component for yaw (about +Y)
-        yawRateSign = 1,  -- flip if the sign test fails
+        yawRateSign = 1,  -- measured rate matches heading-rate sign
         yawMax = 75,
     },
 }
