@@ -118,7 +118,14 @@ function Display:update(snapshot)
             self.util.oneLine(bearing.getRotationSpeed)
         )
     end
-    system[#system + 1] = "Input delta: " .. self.util.oneLine(snapshot.manualInput.delta)
+    if snapshot.manualInput then
+        system[#system + 1] = "Input delta: " .. self.util.oneLine(snapshot.manualInput.delta)
+    end
+    if snapshot.autopilot then
+        local ap = snapshot.autopilot
+        system[#system + 1] = "AUTO alt=" .. self.util.oneLine(ap.targets and ap.targets.altitude)
+            .. " hdg=" .. self.util.oneLine(ap.targets and ap.targets.heading)
+    end
     if snapshot.telemetryError then system[#system + 1] = "REDNET: " .. snapshot.telemetryError end
 
     self:draw(self.flightName, "MC AERO - FLIGHT", flight)

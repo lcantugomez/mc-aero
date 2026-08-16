@@ -12,6 +12,8 @@ local TARGETS = {
         "aircraft/logger.lua",
         "aircraft/startup.lua",
         "aircraft/sweep.lua",
+        "aircraft/control.lua",
+        "aircraft/control_config.lua",
     },
     ground = {
         "ground/station.lua",

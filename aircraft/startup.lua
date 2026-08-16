@@ -29,6 +29,10 @@ local function readPhysics()
 end
 local physics = readPhysics()
 
+local Control = loadModule("control")
+local controlConfig = loadModule("control_config")
+local controller = Control.new(controlConfig, util)
+
 local function printWarnings(label, warnings)
     for _, warning in ipairs(warnings or {}) do
         print("[WARN] " .. label .. ": " .. warning)
@@ -45,44 +49,99 @@ if telemetry.error then print("[WARN] telemetry: " .. telemetry.error) end
 if logger.error then print("[WARN] logger: " .. logger.error) end
 if logger.enabled then print("Logging to " .. logger.path) end
 
+local controlKeys = controlConfig.keys
+
+local function pressedSet()
+    local pressed = util.call(config.peripherals.typewriter, "getPressedKeyCodes")
+    local set = {}
+    if type(pressed) == "number" then pressed = { pressed } end
+    if type(pressed) == "table" then
+        for _, code in pairs(pressed) do set[code] = true end
+    end
+    return set
+end
+
+local function anyManualKey(set)
+    for _, code in pairs(config.manual.keys or {}) do
+        if set[code] then return true end
+    end
+    return false
+end
+
 local function run()
     local nextDisplay = 0
     local nextTelemetry = 0
     local nextLog = 0
     local nextTick = util.nowMs()
     local telemetryError = telemetry.error
+    local mode = "manual"
+    local prevEngage = false
 
     while true do
-        -- Fast control path: sample input and command the RSCs every tick.
-        local manualInput = actuators:apply(config.mode)
-
         local now = util.nowMs()
+        local keysDown = pressedSet()
+
+        -- Mode transitions. Manual override always wins immediately: pressing the
+        -- override key OR touching any manual stick key drops back to manual.
+        local engageHeld = keysDown[controlKeys.engage] == true
+        if mode == "manual" then
+            if engageHeld and not prevEngage then
+                local s = sensors:read()
+                controller:engage(s, actuators.commanded.mainLift or actuators.targetLiftRpm)
+                mode = "autopilot"
+                print("[auto] engaged")
+            end
+        else
+            if keysDown[controlKeys.override] == true or anyManualKey(keysDown) then
+                controller:disengage()
+                mode = "manual"
+                -- resume manual lift where autopilot left off
+                actuators.targetLiftRpm = actuators.commanded.mainLift or actuators.targetLiftRpm
+                actuators.liftEnabled = true
+                print("[auto] override -> manual")
+            end
+        end
+        prevEngage = engageHeld
+
+        -- Control path every tick. Manual = keys->RSC. Autopilot = closed loop,
+        -- which needs sensor feedback each tick (kept for snapshot reuse).
+        local manualInput, controlTelemetry, sensorState
+        if mode == "manual" then
+            manualInput = actuators:apply("manual")
+        else
+            sensorState = sensors:read()
+            local axisTargets, tel = controller:update(sensorState, controlConfig.dt)
+            actuators:apply("autopilot", { axisTargets = axisTargets })
+            controlTelemetry = tel
+        end
+
         local doTelemetry = now >= nextTelemetry
         local doDisplay = now >= nextDisplay
         local doLog = logger.enabled and now >= nextLog
 
-        -- Slow monitoring path: only read all sensors/actuators and build the
-        -- snapshot when telemetry, display, or logging is actually due. This
-        -- keeps the ~50 peripheral reads off the per-tick control path.
+        -- Slow monitoring path: heavy actuator reads + snapshot only when due.
         if doTelemetry or doDisplay or doLog then
             local readStarted = util.nowMs()
-            local sensorState = sensors:read()
+            if not sensorState then sensorState = sensors:read() end
             local actuatorState = actuators:read()
 
             local errors = {}
             util.mergeErrors(errors, sensorState.errors)
             util.mergeErrors(errors, actuatorState.errors)
-            if manualInput.error then errors["manual.input"] = manualInput.error end
-            if manualInput.commandError then errors["manual.command"] = manualInput.commandError end
-            if manualInput.axisErrors then util.mergeErrors(errors, manualInput.axisErrors) end
+            if manualInput then
+                if manualInput.error then errors["manual.input"] = manualInput.error end
+                if manualInput.commandError then errors["manual.command"] = manualInput.commandError end
+                if manualInput.axisErrors then util.mergeErrors(errors, manualInput.axisErrors) end
+            end
 
             local snapshot = {
                 schema = "mc_aero.telemetry.v1",
                 version = config.version,
                 timestampMs = util.nowMs(),
                 computerId = os.getComputerID(),
-                mode = config.mode,
+                mode = mode,
                 manualInput = manualInput,
+                autopilot = controlTelemetry,
                 sensors = sensorState,
                 actuators = actuatorState,
                 errors = errors,
@@ -120,6 +179,14 @@ local function run()
 end
 
 local ok, runError = pcall(run)
+-- Safety on stop: zero the directional/vertical-trim RSCs so nothing runs away,
+-- but leave main lift untouched (preserve philosophy).
+pcall(function()
+    actuators:setAxisTarget("forwardBack", 0)
+    actuators:setAxisTarget("leftRight", 0)
+    actuators:setAxisTarget("yaw", 0)
+    actuators:setAxisTarget("upDown", 0)
+end)
 logger:close()
 telemetry:close()
 

@@ -9,6 +9,7 @@ thrust ranges, gearshift activity, velocities, and errors.
 
 import glob
 import json
+import math
 import os
 import sys
 from collections import defaultdict
@@ -136,6 +137,56 @@ def main(directory):
                     g = mr / target
                     k = mt / mr if abs(mr) > 1e-6 else float("nan")
                     print(f"    {nm:22s} rpm={mr:8.2f} (G={g:5.2f})  thrust={mt:10.2f}  k={k:8.2f}")
+
+        # spin-up time constant tau per axis: pool every step's normalized
+        # first-order decay ln((rf-rpm)/(rf-r0)) = -t/tau and least-squares fit.
+        print("\n--- SWEEP: spin-up time constant tau (first-order) ---")
+        axis_points = defaultdict(list)
+        for (axis, target), group in groups.items():
+            if not target or target == 0:
+                continue
+            group = sorted(group, key=lambda r: as_number(r["sweep"].get("elapsedMs")) or 0)
+            series = defaultdict(list)
+            for r in group:
+                e = (as_number(r["sweep"].get("elapsedMs")) or 0) / 1000.0
+                for b in (r.get("actuators") or {}).get("bearings", []) or []:
+                    rr = as_number(b.get("getRotationSpeed"))
+                    if rr is not None:
+                        series[b.get("role") or b.get("name")].append((e, rr))
+            best_nm, best_val = None, 0.0
+            for nm, pts in series.items():
+                if pts and abs(pts[-1][1]) > best_val:
+                    best_nm, best_val = nm, abs(pts[-1][1])
+            pts = series.get(best_nm) or []
+            if len(pts) < 6:
+                continue
+            r0 = pts[0][1]
+            tail = pts[len(pts) // 2:]
+            rf = sum(v for _, v in tail) / len(tail)
+            denom = rf - r0
+            if abs(denom) < 1.0:
+                continue
+            for e, rr in pts:
+                frac = (rf - rr) / denom
+                if e > 0 and 0.05 < frac < 0.98:
+                    axis_points[axis].append((e, math.log(frac)))
+        for axis in ["mainLift", "forwardBack", "yaw", "leftRight", "upDown"]:
+            pts = axis_points.get(axis) or []
+            if len(pts) < 5:
+                print(f"  {axis:12s} tau: insufficient transient data")
+                continue
+            nsum = len(pts)
+            sx = sum(p[0] for p in pts)
+            sy = sum(p[1] for p in pts)
+            sxx = sum(p[0] * p[0] for p in pts)
+            sxy = sum(p[0] * p[1] for p in pts)
+            d = nsum * sxx - sx * sx
+            slope = (nsum * sxy - sx * sy) / d if abs(d) > 1e-9 else 0
+            if slope < 0:
+                tau = -1.0 / slope
+                print(f"  {axis:12s} tau ~ {tau:.2f} s   (settle ~{3 * tau:.1f} s, n={nsum})")
+            else:
+                print(f"  {axis:12s} tau: could not fit")
 
     # --- motion ------------------------------------------------------------
     print("\n--- MOTION ---")
