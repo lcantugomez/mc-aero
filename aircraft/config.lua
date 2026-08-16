@@ -51,6 +51,13 @@ local config = {
         bearingOffsetDeg = 0,
     },
 
+    -- Body-frame offset (blocks) from the center of mass to the navigation table,
+    -- counted off the contraption diagram: nav table sits 9 blocks toward the
+    -- nose, 1 to starboard, 1 below the CoM block. Rotated by heading, this lets
+    -- us reference position/velocity to the CoM so a yaw-in-place does not read as
+    -- translation (the nav point orbits the CoM; the CoM stays put).
+    comOffset = { fwd = 9, right = 1, up = -1 },
+
     peripherals = {
         altitude = "altitude_sensor_0",
         gimbal = "gimbal_sensor_0",

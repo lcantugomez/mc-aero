@@ -137,6 +137,22 @@ function Sensors:computePosition(navigation, height)
     pos.y = height
     pos.horizontal = horiz
     pos.valid = true
+
+    -- Reference to the center of mass. r is the body-frame offset from the CoM to
+    -- the nav table (config.comOffset), rotated by heading (psi; 0=+Z, 90=+X, CW).
+    -- Forward -> world (sin psi, cos psi); starboard -> (cos psi, -sin psi). The
+    -- CoM position is p_nav - R(psi)*r, which is immune to yaw-in-place rotation.
+    local off = self.config.comOffset
+    if off then
+        local psi = math.rad(heading)
+        local sinp, cosp = math.sin(psi), math.cos(psi)
+        local fwd, right = off.fwd or 0, off.right or 0
+        local rx = fwd * sinp + right * cosp
+        local rz = fwd * cosp - right * sinp
+        pos.comX = pos.x - rx
+        pos.comZ = pos.z - rz
+        pos.comY = height - (off.up or 0)
+    end
     return pos
 end
 

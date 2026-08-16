@@ -76,7 +76,6 @@ function Display:update(snapshot)
     local position = sensors.position or {}
     local ap = snapshot.autopilot
     local u = self.util
-    local cx, cy, cz = xyz(snapshot.centerOfMass)
     local hdg = tonumber(navigation.getHeading)
 
     local flight = {
@@ -101,11 +100,18 @@ function Display:update(snapshot)
         flight[#flight + 1] = "ALT " .. fmt(altitude.height) .. " VS " .. fmt(altitude.verticalSpeed)
     end
 
-    -- Position: nav sensor (p_nav) vs center of mass (p_com), side by side.
-    flight[#flight + 1] = "POS   nav       com"
-    flight[#flight + 1] = string.format("X %s  %s", fmt(position.valid and position.x), fmt(cx))
-    flight[#flight + 1] = string.format("Y %s  %s", fmt(position.y), fmt(cy))
-    flight[#flight + 1] = string.format("Z %s  %s", fmt(position.valid and position.z), fmt(cz))
+    -- Nav is the world position of the nav table (p_nav). CoM is that position
+    -- referenced to the center of mass via the body-frame offset (config.comOffset)
+    -- rotated by heading -- rotation-immune, so a yaw-in-place leaves CoM fixed
+    -- while NAV swings on a circle.
+    flight[#flight + 1] = string.format(
+        "NAV X %s Y %s Z %s",
+        fmt(position.valid and position.x), fmt(position.y), fmt(position.valid and position.z)
+    )
+    flight[#flight + 1] = string.format(
+        "CoM X %s Y %s Z %s",
+        fmt(position.comX), fmt(position.comY), fmt(position.comZ)
+    )
     if ap and ap.targets and (ap.targets.x or ap.targets.z) then
         flight[#flight + 1] = string.format("TGT X %s Z %s", fmt(ap.targets.x), fmt(ap.targets.z))
     end
