@@ -17,17 +17,23 @@ local telemetry = Telemetry.new(config)
 local display = Display.new(config, util)
 local logger = Logger.new(config)
 
--- The physics assembler exposes mass, inertia tensor, and center of mass
--- directly (constant while assembled), so read them once at startup.
+-- Mass and inertia tensor are constant while assembled, so read them once.
 local function readPhysics()
     local pa = config.peripherals.physicsAssembler
     return {
         mass = util.call(pa, "getMass"),
         inertiaTensor = util.call(pa, "getInertiaTensor"),
-        centerOfMass = util.call(pa, "getCenterOfMass"),
     }
 end
 local physics = readPhysics()
+
+-- The center of mass is the true center of rotation. Its world coordinates
+-- shift as the craft translates, so read it LIVE each snapshot (not once) to
+-- track the CoM state separately from the offset nav/gimbal position. This is
+-- p_com; the nav-reconstructed position is p_nav (sensor, offset from CoM).
+local function readCenterOfMass()
+    return util.call(config.peripherals.physicsAssembler, "getCenterOfMass")
+end
 
 local Control = loadModule("control")
 local controlConfig = loadModule("control_config")
@@ -124,10 +130,12 @@ local function run()
             local readStarted = util.nowMs()
             if not sensorState then sensorState = sensors:read() end
             local actuatorState = actuators:read()
+            local centerOfMass, comError = readCenterOfMass()
 
             local errors = {}
             util.mergeErrors(errors, sensorState.errors)
             util.mergeErrors(errors, actuatorState.errors)
+            if comError then errors["physics.getCenterOfMass"] = comError end
             if manualInput then
                 if manualInput.error then errors["manual.input"] = manualInput.error end
                 if manualInput.commandError then errors["manual.command"] = manualInput.commandError end
@@ -148,6 +156,7 @@ local function run()
                 errorCount = util.count(errors),
                 telemetryError = telemetryError,
                 physics = physics,
+                centerOfMass = centerOfMass,
             }
             snapshot.loopDurationMs = util.nowMs() - readStarted
 
