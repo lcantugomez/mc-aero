@@ -51,8 +51,9 @@ function Control:engage(sensorState, currentMainCmd)
     local pos = sensorState.position or {}
     local nav = sensorState.navigation or {}
     self.targets.altitude = tonumber(alt.height)
-    self.targets.x = (pos.valid and pos.x) or nil
-    self.targets.z = (pos.valid and pos.z) or nil
+    -- Hold the CoM-referenced position (rotation-immune), not the nav point.
+    self.targets.x = pos.comX
+    self.targets.z = pos.comZ
     self.targets.heading = tonumber(nav.getHeading)
 
     local a = self.cc.altitude
@@ -127,9 +128,9 @@ function Control:update(sensorState, dt)
     local hz = cc.horizontal
     local headingDeg = tonumber(nav.getHeading)
     local uFB, uLR = 0, 0
-    if cc.enable.horizontal and headingDeg and pos.valid and self.targets.x and self.targets.z then
-        local eX = self.targets.x - pos.x
-        local eZ = self.targets.z - pos.z
+    if cc.enable.horizontal and headingDeg and pos.comX and pos.comZ and self.targets.x and self.targets.z then
+        local eX = self.targets.x - pos.comX
+        local eZ = self.targets.z - pos.comZ
         local VxCmd = clamp(hz.Kpos * eX, -hz.velocityCmdMax, hz.velocityCmdMax)
         local VzCmd = clamp(hz.Kpos * eZ, -hz.velocityCmdMax, hz.velocityCmdMax)
         local eVX = VxCmd - vel.x

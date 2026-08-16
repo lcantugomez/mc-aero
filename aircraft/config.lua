@@ -51,12 +51,15 @@ local config = {
         bearingOffsetDeg = 0,
     },
 
-    -- Body-frame offset (blocks) from the center of mass to the navigation table,
-    -- counted off the contraption diagram: nav table sits 9 blocks toward the
-    -- nose, 1 to starboard, 1 below the CoM block. Rotated by heading, this lets
-    -- us reference position/velocity to the CoM so a yaw-in-place does not read as
-    -- translation (the nav point orbits the CoM; the CoM stays put).
-    comOffset = { fwd = 9, right = 1, up = -1 },
+    -- Offset used to rotate the nav-table world position into a CoM-referenced
+    -- position (comX/comZ) that stays fixed during a yaw-in-place.
+    -- fwd/right are the EMPIRICAL fit from the Aug-16 pure-yaw run (circle center
+    -- -9.93, 1059.2; radius ~11 blocks), verified by the position-vs-time plot.
+    -- They sit ~90 deg rotated from the physically-measured 9 fwd / 1 right: the
+    -- nav table's getHeading zero is not aligned with the body-forward axis the
+    -- transform assumes, so these numbers absorb that rotation. up is the physical
+    -- vertical offset (nav table ~1 block below the CoM).
+    comOffset = { fwd = -0.76, right = -10.83, up = -1 },
 
     peripherals = {
         altitude = "altitude_sensor_0",

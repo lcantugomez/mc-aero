@@ -25,8 +25,8 @@ return {
     -- a /aircraft/user_config-style override or by editing here.
     enable = {
         altitude = true,
-        horizontal = false,
-        heading = false,
+        horizontal = true,  -- now on CoM-referenced position (comX/comZ)
+        heading = false,    -- enable after horizontal hold is confirmed (see note)
     },
 
     altitude = {
