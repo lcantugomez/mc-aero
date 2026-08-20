@@ -82,6 +82,12 @@ function LQI:disengage()
     self.mode = "manual"
 end
 
+-- Clear the integral accumulators (fresh start for a new mission/command, so a
+-- stale integral from a previous target can't bias the new one).
+function LQI:resetIntegral()
+    self.xi = { s_x = 0, s_y = 0, s_z = 0, psi = 0 }
+end
+
 -- Update setpoints without touching integrals/actuator states (for the guidance
 -- layer to steer the hold point smoothly). Only fields present are changed.
 function LQI:setTarget(t)
@@ -162,12 +168,22 @@ function LQI:update(sensorState, dt)
     end
 
     -- ---- integrate tracked outputs (regulator: d xi/dt = -s) -----------
+    -- Conditional integration (anti-windup): only integrate an axis while its
+    -- primary actuator is NOT saturated. A floored climb/cruise then cannot wind
+    -- up, but a normal (unsaturated) approach still integrates out steady error.
+    local function satC(c)
+        local lim = self.limit[c]
+        local lo, hi
+        if type(lim) == "table" then lo, hi = lim[1], lim[2] else lo, hi = -lim, lim end
+        local v = u[c] or 0
+        return v >= (hi - 1e-6) or v <= (lo + 1e-6)
+    end
     local xm = lc.xiMax or {}
     if dt > 0 then
-        self.xi.s_x = clamp(self.xi.s_x - s_x * dt, -(xm.s_x or 1e9), (xm.s_x or 1e9))
-        self.xi.s_y = clamp(self.xi.s_y - s_y * dt, -(xm.s_y or 1e9), (xm.s_y or 1e9))
-        self.xi.s_z = clamp(self.xi.s_z - s_z * dt, -(xm.s_z or 1e9), (xm.s_z or 1e9))
-        self.xi.psi = clamp(self.xi.psi - psi_err * dt, -(xm.psi or 1e9), (xm.psi or 1e9))
+        if not satC("mainLift") then self.xi.s_y = clamp(self.xi.s_y - s_y * dt, -(xm.s_y or 1e9), (xm.s_y or 1e9)) end
+        if not satC("forwardBack") then self.xi.s_x = clamp(self.xi.s_x - s_x * dt, -(xm.s_x or 1e9), (xm.s_x or 1e9)) end
+        if not satC("leftRight") then self.xi.s_z = clamp(self.xi.s_z - s_z * dt, -(xm.s_z or 1e9), (xm.s_z or 1e9)) end
+        if not satC("yaw") then self.xi.psi = clamp(self.xi.psi - psi_err * dt, -(xm.psi or 1e9), (xm.psi or 1e9)) end
     end
 
     -- ---- propagate command-equivalent actuator states -----------------

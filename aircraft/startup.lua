@@ -143,6 +143,7 @@ local function run()
         local s, cur = currentState()
         if not (cur.x and cur.z) then sendAck(sender, msg.id, false, "no position fix"); return end
         if mode ~= "autopilot" then engageAt(s, cur) end
+        controller:resetIntegral()   -- fresh integral for each new command
         if kind == "goto" then
             local ok, reason = guidance:go(
                 { x = msg.x, z = msg.z, altitude = msg.altitude, heading = msg.heading }, cur)

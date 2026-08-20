@@ -70,9 +70,12 @@ local config = {
         commandProtocol = "mc_aero.command.v1",
         cruiseAltitude = 190,      -- safe travel height; climbs here before moving
         maxGotoDistance = 10000,   -- reject a goto farther than this (blocks)
-        vCruise = 8,               -- setpoint cruise speed (blocks/s)
-        aDecel = 1.0,              -- arrival deceleration (blocks/s^2)
-        maxLead = 5,               -- cap how far the moving setpoint leads the craft
+        directCruise = true,       -- true: hand the goal straight to the LQI (full
+                                   -- send, controller handles decel). false: use the
+                                   -- rate/decel-limited moving setpoint below.
+        vCruise = 8,               -- (guided mode) setpoint cruise speed (blocks/s)
+        aDecel = 1.0,              -- (guided mode) arrival deceleration (blocks/s^2)
+        maxLead = 5,               -- (guided mode) cap how far the setpoint leads
         arriveRadius = 3,          -- cruise -> arrive within this of the goal (blocks)
         orientToleranceDeg = 8,    -- heading-aligned threshold to leave ORIENT
         altTolerance = 1.5,        -- altitude-reached threshold (blocks)

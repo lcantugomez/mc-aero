@@ -40,7 +40,10 @@ return {
     positionSign = { forward = 1, lateral = 1 },
 
     -- Integral anti-windup clamps per tracked output (deviation-seconds).
-    xiMax = { s_x = 50, s_y = 50, s_z = 50, psi = 5 },
+    -- Integral clamps (raised so the integral can supply real steady authority;
+    -- the actuator-state feedback attenuates command a lot, so these must be big).
+    -- Conditional anti-windup in lqi.lua prevents runaway while saturated.
+    xiMax = { s_x = 500, s_y = 500, s_z = 500, psi = 20 },
 
     -- Subsystem gates for the OUTER setpoint holds. Inner damping (velocity, yaw
     -- rate, actuator states) is always active. Recommended bring-up order:

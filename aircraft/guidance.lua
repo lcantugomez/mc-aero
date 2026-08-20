@@ -109,6 +109,10 @@ function Guidance:update(cur)
         if distCur <= (c.arriveRadius or 3) then
             self.sp.x, self.sp.z = g.x, g.z
             self.state = "arrive"
+        elseif c.directCruise then
+            -- unbounded: hand the goal straight to the LQI. It saturates the
+            -- command (floors it) then decelerates via its own velocity damping.
+            self.sp.x, self.sp.z = g.x, g.z
         else
             -- advance the setpoint along the line to the goal at a decel-limited
             -- speed, but never let it lead the craft by more than maxLead (keeps
