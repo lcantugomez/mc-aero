@@ -46,7 +46,14 @@ local config = {
     -- No GPS constellation needed at runtime, so nothing blocks the loop.
     position = {
         enabled = true,
-        lodestone = { x = -30, z = 1046 }, -- world X/Z of the bound lodestone
+        useGps = true,             -- primary: gps.locate (fast, world coords, robust)
+        gpsTimeout = 0.2,          -- max wait per locate (normally returns in <1ms)
+        headingOffsetDeg = -1.5,   -- world->body rotation offset (matches lqi/guidance)
+        -- Body-frame offset (blocks) from the CoM to the GPS receiver (the computer):
+        -- ~10 ahead (nose), in line laterally, 1 below. Used to reference the held
+        -- position to the CoM so a yaw-in-place does not orbit the setpoint.
+        computerOffset = { fwd = 10, right = 0, up = -1 },
+        lodestone = { x = -30, z = 1046 }, -- fallback reconstruction lodestone X/Z
         -- worldBearing = heading - bearing + bearingOffsetDeg (calibrated ~0)
         bearingOffsetDeg = 0,
     },

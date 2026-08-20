@@ -114,8 +114,43 @@ function Sensors:computePosition(navigation, height)
     if not cfg or not cfg.enabled then return nil end
 
     local pos = { valid = false, y = height }
+
+    -- Primary source: GPS. ~0.6 ms/locate, returns world coords directly, and
+    -- (unlike the lodestone bearing/distance reconstruction) does not break up at
+    -- speed or hit the overhead pole singularity. Hold the computer point as the
+    -- control position -- heading is tightly held, so the yaw orbit is negligible;
+    -- add a computer->CoM offset here if a yaw-in-place drift ever shows up.
+    if cfg.useGps ~= false and gps then
+        local gx, gy, gz = gps.locate(cfg.gpsTimeout or 0.2)
+        if gx then
+            pos.x, pos.z = gx, gz
+            pos.gpsY = gy
+            pos.valid = true
+            pos.source = "gps"
+            -- Reference the CoM: subtract the computer's body-frame offset rotated
+            -- into world by the fitted rotation (th = heading + offset). Forward-world
+            -- = (-cos, sin); right(starboard)-world = (-sin, -cos).
+            local off = cfg.computerOffset
+            local heading = tonumber(navigation.getHeading)
+            if off and heading then
+                local th = math.rad(heading + (cfg.headingOffsetDeg or -1.5))
+                local ct, st = math.cos(th), math.sin(th)
+                local fwd, right = off.fwd or 0, off.right or 0
+                local rx = fwd * (-ct) + right * (-st)
+                local rz = fwd * (st) + right * (-ct)
+                pos.comX = gx - rx
+                pos.comZ = gz - rz
+                pos.comY = height - (off.up or 0)
+            else
+                pos.comX, pos.comZ, pos.comY = gx, gz, height
+            end
+            return pos
+        end
+        pos.reason = "gps unavailable"
+    end
+
     if navigation.hasTarget ~= true then
-        pos.reason = "no navigation target"
+        pos.reason = pos.reason or "no navigation target"
         return pos
     end
 
