@@ -33,6 +33,11 @@ return {
     -- rotates/spirals. Only used when enable.position = true.
     headingOffsetDeg = 0,
 
+    -- Sign of the world->body position projection per body axis. Defaults are the
+    -- derived-correct values (body-z fixed from the runaway bug). Flip a sign here
+    -- if position hold still drives away on that axis, no model rebuild needed.
+    positionSign = { forward = 1, lateral = 1 },
+
     -- Integral anti-windup clamps per tracked output (deviation-seconds).
     xiMax = { s_x = 50, s_y = 50, s_z = 50, psi = 5 },
 

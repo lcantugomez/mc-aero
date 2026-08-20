@@ -152,11 +152,17 @@ for s in STATE_I:
     else:
         qdiag.append(0.1 / xi_max[s] ** 2)  # integral action, modest
 Q = np.diag(qdiag)
-# RHO scales the control penalty: RAISE it to make the controller LESS aggressive
-# (smaller, intermediate commands instead of on/off saturation). First flight was
-# bang-bang at RHO=1; softened to 50. Tune this single number to taste.
-RHO = 150.0
-R = np.diag([RHO / 256.0 ** 2] * N)
+# Per-channel control penalty (RAISE = gentler). Tuned from flight feedback:
+# mainLift softened (altitude was a touch hot), yaw stiffened (heading slid in
+# too slowly). upDown/forwardBack/leftRight left at the nominal.
+RHO_CH = {
+    "mainLift": 225.0,   # softer altitude
+    "forwardBack": 150.0,
+    "leftRight": 150.0,
+    "yaw": 100.0,        # slightly more aggressive heading
+    "upDown": 150.0,
+}
+R = np.diag([RHO_CH[c] / 256.0 ** 2 for c in CHANNELS])
 
 # ------------------------------------------------------------------ discrete LQI
 P = solve_discrete_are(Ad, Bd, Q, R)

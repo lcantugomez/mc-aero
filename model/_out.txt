@@ -16,10 +16,10 @@ hover nominal main-lift command* = m*g / (CMD_GAIN*G_Fy_main) = 232.78
 max |eig| = 0.99563  STABLE
 
 === |K| max per input row (lower = gentler) ===
-  mainLift     max|K| =     26.8
+  mainLift     max|K| =     23.9
   forwardBack  max|K| =     45.6
-  leftRight    max|K| =    503.4
-  yaw          max|K| =    805.9
-  upDown       max|K| =      3.7
+  leftRight    max|K| =    509.8
+  yaw          max|K| =    869.0
+  upDown       max|K| =      4.9
 
 wrote /home/luisc/Documents/MCAero/mc-aero/model/../aircraft/plant_K.lua  (K is 5 x 17)

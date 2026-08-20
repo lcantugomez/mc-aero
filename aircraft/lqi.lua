@@ -103,8 +103,12 @@ function LQI:update(sensorState, dt)
         local dZ = pos.comZ - self.targets.z
         local psi = math.rad(heading + (lc.headingOffsetDeg or 0))
         local sp, cp = math.sin(psi), math.cos(psi)
-        s_x = dX * sp + dZ * cp
-        s_z = dX * cp - dZ * sp
+        -- Body axes in world (right-handed, verified vs the velocity sensor at
+        -- heading ~90): body-x (aft) = (sin, cos); body-z (left) = (-cos, sin).
+        -- s_z uses the corrected body-z direction so d(s_z)/dt matches sensor v_z.
+        local sgn = lc.positionSign or {}
+        s_x = (sgn.forward or 1) * (dX * sp + dZ * cp)
+        s_z = (sgn.lateral or 1) * (dZ * sp - dX * cp)
     end
     local s_y = 0
     if lc.enable.altitude and height and self.targets.altitude then
