@@ -80,7 +80,7 @@ local config = {
             mainLift    = "Create_RotationSpeedController_1", -- gyro_1 + gyro_2 lift pair
             forwardBack = "Create_RotationSpeedController_2", -- propeller_bearing_1
             yaw         = "Create_RotationSpeedController_3", -- gyro_0 + gyro_4
-            leftRight   = "Create_RotationSpeedController_4", -- gyro_3 + gyro_6
+            leftRight   = "Create_RotationSpeedController_4", -- gyro_7 + gyro_8
             upDown      = "Create_RotationSpeedController_5", -- gyro_5
         },
 
@@ -90,8 +90,8 @@ local config = {
             { name = "gyroscopic_propeller_bearing_1", role = "main_lift_left",    gyro = true },
             { name = "gyroscopic_propeller_bearing_2", role = "main_lift_right",   gyro = true },
             { name = "gyroscopic_propeller_bearing_5", role = "up_down",           gyro = true },
-            { name = "gyroscopic_propeller_bearing_3", role = "translation_right", gyro = true },
-            { name = "gyroscopic_propeller_bearing_6", role = "translation_left",  gyro = true },
+            { name = "gyroscopic_propeller_bearing_8", role = "translation_right", gyro = true },
+            { name = "gyroscopic_propeller_bearing_7", role = "translation_left",  gyro = true },
             { name = "gyroscopic_propeller_bearing_0", role = "yaw_left",          gyro = true },
             { name = "gyroscopic_propeller_bearing_4", role = "yaw_right",         gyro = true },
             { name = "propeller_bearing_1",            role = "forward_back",      gyro = false },

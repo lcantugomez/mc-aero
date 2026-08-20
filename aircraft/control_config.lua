@@ -47,6 +47,16 @@ return {
         forwardBackSign = -1, -- +forwardBack measured as body-backward
         leftRightSign = -1,   -- +leftRight measured as body-left
 
+        -- World->body rotation (deg) added to heading, used to rotate the WORLD
+        -- position error into the body frame. Needs calibration (see note below).
+        headingOffsetDeg = 0,
+
+        -- The velocity sensors report BODY-frame velocity (confirmed
+        -- heading-independent). Map their reported axes/signs to body forward
+        -- (+nose) and lateral (+starboard). From the manual test: W (forward) reads
+        -- negative on sensor "x", D (right) reads negative on sensor "z".
+        bodyVel = { forwardAxis = "x", forwardSign = -1, lateralAxis = "z", lateralSign = -1 },
+
         Kpos = 0.30,          -- position -> velocity gain (1/s)
         velocityCmdMax = 2.0, -- blocks/s
         Kvf100 = 12.24,       -- forward/back velocity gain at 100% pressure

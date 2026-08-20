@@ -129,21 +129,33 @@ function Control:update(sensorState, dt)
     local headingDeg = tonumber(nav.getHeading)
     local uFB, uLR = 0, 0
     if cc.enable.horizontal and headingDeg and pos.comX and pos.comZ and self.targets.x and self.targets.z then
+        -- World position error (CoM-referenced).
         local eX = self.targets.x - pos.comX
         local eZ = self.targets.z - pos.comZ
-        local VxCmd = clamp(hz.Kpos * eX, -hz.velocityCmdMax, hz.velocityCmdMax)
-        local VzCmd = clamp(hz.Kpos * eZ, -hz.velocityCmdMax, hz.velocityCmdMax)
-        local eVX = VxCmd - vel.x
-        local eVZ = VzCmd - vel.z
-        local psi = math.rad(headingDeg)
-        local eVf = eVX * math.sin(psi) + eVZ * math.cos(psi)
-        local eVl = eVX * math.cos(psi) - eVZ * math.sin(psi)
+        -- Rotate the WORLD position error into the body frame to get a body-frame
+        -- desired velocity. The velocity sensors already read body-frame velocity
+        -- (confirmed heading-independent), so velocity feedback is used DIRECTLY --
+        -- no rotation on the measurement. headingOffsetDeg aligns getHeading's zero
+        -- with the body-forward axis used by the position decomposition.
+        local psi = math.rad(headingDeg + (hz.headingOffsetDeg or 0))
+        local eFwd = eX * math.sin(psi) + eZ * math.cos(psi)
+        local eLat = eX * math.cos(psi) - eZ * math.sin(psi)
+        local VfCmd = clamp(hz.Kpos * eFwd, -hz.velocityCmdMax, hz.velocityCmdMax)
+        local VlCmd = clamp(hz.Kpos * eLat, -hz.velocityCmdMax, hz.velocityCmdMax)
+        local bv = hz.bodyVel or {}
+        local vFwd = (bv.forwardSign or 1) * (vel[bv.forwardAxis or "x"] or 0)
+        local vLat = (bv.lateralSign or 1) * (vel[bv.lateralAxis or "z"] or 0)
+        local eVf = VfCmd - vFwd
+        local eVl = VlCmd - vLat
         local Kvf = hz.Kvf100 * gainScale
         local Kvl = hz.Kvl100 * gainScale
         uFB = clamp((hz.forwardBackSign or 1) * Kvf * eVf, -hz.forwardBackMax, hz.forwardBackMax)
         uLR = clamp((hz.leftRightSign or 1) * Kvl * eVl, -hz.leftRightMax, hz.leftRightMax)
         telemetry.horizontal = {
-            xError = eX, zError = eZ, vxCommand = VxCmd, vzCommand = VzCmd,
+            xError = eX, zError = eZ,
+            forwardError = eFwd, lateralError = eLat,
+            vfCommand = VfCmd, vlCommand = VlCmd,
+            bodyForwardVel = vFwd, bodyLateralVel = vLat,
             bodyForwardVelocityError = eVf, bodyLateralVelocityError = eVl,
             Kvf = Kvf, Kvl = Kvl, forwardBackCommand = uFB, leftRightCommand = uLR,
         }
