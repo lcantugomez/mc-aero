@@ -15,6 +15,7 @@ local TARGETS = {
         "aircraft/lqi.lua",
         "aircraft/lqi_config.lua",
         "aircraft/plant_K.lua",
+        "aircraft/guidance.lua",
     },
     ground = {
         "ground/station.lua",

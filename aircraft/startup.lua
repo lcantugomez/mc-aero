@@ -40,6 +40,38 @@ local lqiConfig = loadModule("lqi_config")
 local plantK = loadModule("plant_K")
 local controller = LQI.new(lqiConfig, util, plantK)
 
+local Guidance = loadModule("guidance")
+local guidance = Guidance.new(config.mission)
+local commandProtocol = config.mission.commandProtocol
+local mailbox = {}  -- shared with the receiver coroutine (cooperative, no locking needed)
+
+-- Ensure the command modem (rednet) is open for receiving go-to requests.
+do
+    local side = config.telemetry.modemSide
+    if peripheral.getType(side) == "modem" and not rednet.isOpen(side) then
+        pcall(rednet.open, side)
+    end
+end
+
+-- Non-blocking "process waiting for requests": blocks on rednet.receive; when a
+-- request lands it is queued for the control loop to consume on its next tick.
+-- Runs concurrently with the control loop via parallel.waitForAny.
+local function receiver()
+    while true do
+        local sender, message = rednet.receive(commandProtocol)
+        if type(message) == "table" and message.kind then
+            mailbox[#mailbox + 1] = { sender = sender, msg = message }
+        end
+    end
+end
+
+local function sendAck(sender, id, accepted, reason)
+    pcall(rednet.send, sender, {
+        kind = "ack", id = id, accepted = accepted, reason = reason,
+        computerId = os.getComputerID(),
+    }, commandProtocol)
+end
+
 local function printWarnings(label, warnings)
     for _, warning in ipairs(warnings or {}) do
         print("[WARN] " .. label .. ": " .. warning)
@@ -84,6 +116,46 @@ local function run()
     local mode = "manual"
     local prevEngage = false
 
+    -- Snapshot current CoM-referenced state for guidance/commands.
+    local function currentState(s)
+        s = s or sensors:read()
+        local pos, nav, alt = s.position or {}, s.navigation or {}, s.altitude or {}
+        return s, {
+            x = pos.comX, z = pos.comZ,
+            height = tonumber(alt.height), heading = tonumber(nav.getHeading),
+            dt = lqiConfig.dt,
+        }
+    end
+
+    local function engageAt(s, cur)
+        controller:engage(s, actuators.commanded.mainLift or actuators.targetLiftRpm)
+        guidance:hold(controller.targets.x, controller.targets.z,
+            controller.targets.altitude, controller.targets.heading)
+        mode = "autopilot"
+    end
+
+    -- goto takes over from manual; cancel/hold parks a hover at the current CoM.
+    local function processCommand(entry)
+        local msg, sender = entry.msg, entry.sender
+        local kind = msg.kind
+        if kind == "ping" then sendAck(sender, msg.id, true, "pong"); return end
+        local s, cur = currentState()
+        if not (cur.x and cur.z) then sendAck(sender, msg.id, false, "no position fix"); return end
+        if mode ~= "autopilot" then engageAt(s, cur) end
+        if kind == "goto" then
+            local ok, reason = guidance:go(
+                { x = msg.x, z = msg.z, altitude = msg.altitude, heading = msg.heading }, cur)
+            sendAck(sender, msg.id, ok, reason)
+            if ok then print(string.format("[goto] %.1f, %.1f", msg.x, msg.z)) end
+        elseif kind == "hold" or kind == "cancel" then
+            guidance:hold(cur.x, cur.z, cur.height, cur.heading)
+            sendAck(sender, msg.id, true, kind)
+            print("[auto] " .. kind .. " -> hold")
+        else
+            sendAck(sender, msg.id, false, "unknown kind")
+        end
+    end
+
     while true do
         local now = util.nowMs()
         local keysDown = pressedSet()
@@ -93,9 +165,8 @@ local function run()
         local engageHeld = keysDown[controlKeys.engage] == true
         if mode == "manual" then
             if engageHeld and not prevEngage then
-                local s = sensors:read()
-                controller:engage(s, actuators.commanded.mainLift or actuators.targetLiftRpm)
-                mode = "autopilot"
+                local s, cur = currentState()
+                engageAt(s, cur)
                 print("[auto] engaged")
             end
         else
@@ -110,6 +181,11 @@ local function run()
         end
         prevEngage = engageHeld
 
+        -- Consume any queued go-to / hold / cancel requests (non-blocking).
+        while #mailbox > 0 do
+            processCommand(table.remove(mailbox, 1))
+        end
+
         -- Control path every tick. Manual = keys->RSC. Autopilot = closed loop,
         -- which needs sensor feedback each tick (kept for snapshot reuse).
         local manualInput, controlTelemetry, sensorState
@@ -117,8 +193,22 @@ local function run()
             manualInput = actuators:apply("manual")
         else
             sensorState = sensors:read()
+            local pos, nav, alt = sensorState.position or {}, sensorState.navigation or {}, sensorState.altitude or {}
+            local cur = {
+                x = pos.comX, z = pos.comZ,
+                height = tonumber(alt.height), heading = tonumber(nav.getHeading),
+                dt = lqiConfig.dt,
+            }
+            local sp, gstate = guidance:update(cur)
+            controller:setTarget(sp)
             local axisTargets, tel = controller:update(sensorState, lqiConfig.dt)
             actuators:apply("autopilot", { axisTargets = axisTargets })
+            tel.guidance = { state = gstate }
+            if guidance.goal and cur.x and cur.z then
+                tel.guidance.goalX, tel.guidance.goalZ = guidance.goal.x, guidance.goal.z
+                tel.guidance.goalAltitude = guidance.goal.altitude
+                tel.guidance.distance = math.sqrt((guidance.goal.x - cur.x) ^ 2 + (guidance.goal.z - cur.z) ^ 2)
+            end
             controlTelemetry = tel
         end
 
@@ -188,7 +278,7 @@ local function run()
     end
 end
 
-local ok, runError = pcall(run)
+local ok, runError = pcall(parallel.waitForAny, run, receiver)
 -- Safety on stop: zero the directional/vertical-trim RSCs so nothing runs away,
 -- but leave main lift untouched (preserve philosophy).
 pcall(function()

@@ -61,6 +61,27 @@ local config = {
     -- vertical offset (nav table ~1 block below the CoM).
     comOffset = { fwd = -0.76, right = -10.83, up = -1 },
 
+    -- Go-to-coordinate mission link + guidance. Requests arrive over rednet
+    -- (ender modem, unlimited range) on commandProtocol. The guidance state
+    -- machine (aircraft/guidance.lua) turns a goal into a moving setpoint fed to
+    -- the LQI: climb to a safe height, orient nose-on, cruise straight in
+    -- decel-limited, then descend onto the target. One K throughout.
+    mission = {
+        commandProtocol = "mc_aero.command.v1",
+        cruiseAltitude = 190,      -- safe travel height; climbs here before moving
+        maxGotoDistance = 200,     -- reject a goto farther than this (blocks)
+        vCruise = 8,               -- setpoint cruise speed (blocks/s)
+        aDecel = 1.0,              -- arrival deceleration (blocks/s^2)
+        maxLead = 5,               -- cap how far the moving setpoint leads the craft
+        arriveRadius = 3,          -- cruise -> arrive within this of the goal (blocks)
+        orientToleranceDeg = 8,    -- heading-aligned threshold to leave ORIENT
+        altTolerance = 1.5,        -- altitude-reached threshold (blocks)
+        altitudeFloor = 60,        -- reject goto below this
+        altitudeCeiling = 250,     -- reject goto above this
+        headingOffsetDeg = -1.5,   -- must match lqi_config (fitted world->body offset)
+        bearingFlip = false,       -- set true if ORIENT faces away from the goal
+    },
+
     peripherals = {
         altitude = "altitude_sensor_0",
         gimbal = "gimbal_sensor_0",

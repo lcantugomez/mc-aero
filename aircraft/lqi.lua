@@ -82,6 +82,15 @@ function LQI:disengage()
     self.mode = "manual"
 end
 
+-- Update setpoints without touching integrals/actuator states (for the guidance
+-- layer to steer the hold point smoothly). Only fields present are changed.
+function LQI:setTarget(t)
+    if t.altitude ~= nil then self.targets.altitude = t.altitude end
+    if t.x ~= nil then self.targets.x = t.x end
+    if t.z ~= nil then self.targets.z = t.z end
+    if t.heading ~= nil then self.targets.heading = t.heading end
+end
+
 function LQI:update(sensorState, dt)
     local lc = self.lc
     dt = dt or self.dt
