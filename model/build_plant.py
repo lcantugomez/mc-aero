@@ -134,22 +134,29 @@ Ad = Md[:nI, :nI]
 Bd = Md[:nI, nI:]
 
 # ------------------------------------------------------------------ Q, R (normalized, Bryson)
+# Bryson-rule normalized weights. LARGER xmax => gentler (lower gain) on that
+# state. These were relaxed after the first flight showed bang-bang saturation:
+# the velocity and yaw-rate weights are loosened so commands stay proportional.
 xmax = {
-    "s_x": 5.0, "s_y": 3.0, "s_z": 5.0, "psi": np.deg2rad(10),
-    "v_x": 2.0, "v_y": 1.0, "v_z": 2.0, "r": 0.5,
+    "s_x": 5.0, "s_y": 3.0, "s_z": 5.0, "psi": np.deg2rad(20),
+    "v_x": 6.0, "v_y": 3.0, "v_z": 6.0, "r": 4.0,
 }
 for c in CHANNELS:
     xmax[f"w_{c}"] = 256.0
 # integral states: weight modestly (units block*s / rad*s)
-xi_max = {"xi_sx": 5.0, "xi_sy": 3.0, "xi_sz": 5.0, "xi_psi": np.deg2rad(10)}
+xi_max = {"xi_sx": 8.0, "xi_sy": 5.0, "xi_sz": 8.0, "xi_psi": np.deg2rad(20)}
 qdiag = []
 for s in STATE_I:
     if s in xmax:
         qdiag.append(1.0 / xmax[s] ** 2)
     else:
-        qdiag.append(0.2 / xi_max[s] ** 2)  # integral action, modest
+        qdiag.append(0.1 / xi_max[s] ** 2)  # integral action, modest
 Q = np.diag(qdiag)
-R = np.diag([1.0 / 256.0 ** 2] * N)
+# RHO scales the control penalty: RAISE it to make the controller LESS aggressive
+# (smaller, intermediate commands instead of on/off saturation). First flight was
+# bang-bang at RHO=1; softened to 50. Tune this single number to taste.
+RHO = 150.0
+R = np.diag([RHO / 256.0 ** 2] * N)
 
 # ------------------------------------------------------------------ discrete LQI
 P = solve_discrete_are(Ad, Bd, Q, R)
@@ -158,6 +165,9 @@ K = np.linalg.solve(R + Bd.T @ P @ Bd, Bd.T @ P @ Ad)
 cl = np.linalg.eigvals(Ad - Bd @ K)
 print("\n=== closed-loop (discrete) spectral radius ===")
 print("max |eig| = %.5f  %s" % (np.max(np.abs(cl)), "STABLE" if np.max(np.abs(cl)) < 1.0 else "*** UNSTABLE ***"))
+print("\n=== |K| max per input row (lower = gentler) ===")
+for i, c in enumerate(CHANNELS):
+    print("  %-11s  max|K| = %8.1f" % (c, np.max(np.abs(K[i]))))
 
 # ------------------------------------------------------------------ export Lua
 def lua_matrix(mat):
