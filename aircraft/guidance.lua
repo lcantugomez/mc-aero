@@ -112,7 +112,7 @@ function Guidance:update(cur)
         self.sp.altitude = c.cruiseAltitude
         self.sp.heading = self:bearingTo(cur.x, cur.z, g.x, g.z)
         local distCur = math.sqrt((g.x - cur.x) ^ 2 + (g.z - cur.z) ^ 2)
-        if distCur <= (c.arriveRadius or 10) then
+        if distCur <= (c.brakeRadius or 30) then
             self.sp.x, self.sp.z = g.x, g.z
             -- Freeze heading now (final if requested, else current) so we stop
             -- chasing the bearing-to-goal, which spins wildly right over the target.
@@ -140,10 +140,16 @@ function Guidance:update(cur)
         end
 
     elseif st == "arrive" then
+        -- Brake and settle over the target and re-orient to the final heading
+        -- BEFORE descending. Hold the goal (LQI decelerates) and wait until it is
+        -- both close and slow, so a fast long-range approach can bleed off speed.
         self.sp.x, self.sp.z = g.x, g.z
         self.sp.altitude = c.cruiseAltitude
         self.sp.heading = self.finalHeading or self.sp.heading
-        self.state = "descend"
+        local distCur = math.sqrt((g.x - cur.x) ^ 2 + (g.z - cur.z) ^ 2)
+        if distCur <= (c.arriveRadius or 10) and (cur.speed or 0) <= (c.arriveSpeed or 2) then
+            self.state = "descend"
+        end
 
     elseif st == "descend" then
         self.sp.x, self.sp.z = g.x, g.z

@@ -83,9 +83,11 @@ local config = {
         vCruise = 8,               -- (guided mode) setpoint cruise speed (blocks/s)
         aDecel = 1.0,              -- (guided mode) arrival deceleration (blocks/s^2)
         maxLead = 5,               -- (guided mode) cap how far the setpoint leads
-        arriveRadius = 10,         -- cruise -> arrive within this of the goal (blocks).
-                                   -- Kept large so it leaves CRUISE before the
-                                   -- bearing-to-goal gets twitchy right over the target.
+        brakeRadius = 30,          -- CRUISE -> ARRIVE (start braking) this far out.
+        arriveRadius = 10,         -- ARRIVE -> DESCEND only once within this of the goal
+        arriveSpeed = 2.0,         -- ...AND slowed below this (blocks/s). Lets a fast
+                                   -- long-range approach bleed off speed and re-orient
+                                   -- to the final heading before it descends.
         orientToleranceDeg = 8,    -- heading-aligned threshold to leave ORIENT
         altTolerance = 1.5,        -- altitude-reached threshold (blocks)
         climbBand = 25,            -- leave CLIMB once within this of cruise alt AND

@@ -211,10 +211,16 @@ local function run()
         else
             sensorState = sensors:read()
             local pos, nav, alt = sensorState.position or {}, sensorState.navigation or {}, sensorState.altitude or {}
+            local vbx, vbz = 0, 0
+            for _, sv in ipairs(sensorState.velocity or {}) do
+                local ax = tostring(sv.axis):lower()
+                if ax == "x" then vbx = sv.velocity or 0 elseif ax == "z" then vbz = sv.velocity or 0 end
+            end
             local cur = {
                 x = pos.comX, z = pos.comZ,
                 height = tonumber(alt.height), heading = tonumber(nav.getHeading),
                 vy = tonumber(alt.verticalSpeed),
+                speed = math.sqrt(vbx * vbx + vbz * vbz),
                 dt = lqiConfig.dt,
             }
             local sp, gstate = guidance:update(cur)
