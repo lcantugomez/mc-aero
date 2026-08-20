@@ -61,6 +61,7 @@ local function receiver()
         local sender, message = rednet.receive(commandProtocol)
         if type(message) == "table" and message.kind then
             mailbox[#mailbox + 1] = { sender = sender, msg = message }
+            while #mailbox > 16 do table.remove(mailbox, 1) end   -- drop oldest if flooded
         end
     end
 end
@@ -136,9 +137,22 @@ local function run()
     end
 
     -- goto takes over from manual; cancel/hold parks a hover at the current CoM.
+    local seen = {}   -- sender -> highest id processed (replay/duplicate guard)
     local function processCommand(entry)
         local msg, sender = entry.msg, entry.sender
         local kind = msg.kind
+        -- callsign filter: accept broadcasts with no callsign, or one matching ours.
+        local mine = config.mission.callsign
+        if mine and msg.callsign and msg.callsign ~= mine then return end
+        -- staleness guard (needs a timestamp on the message).
+        if msg.ts and config.mission.commandTtlMs
+            and (util.nowMs() - msg.ts) > config.mission.commandTtlMs then
+            sendAck(sender, msg.id, false, "stale")
+            return
+        end
+        -- duplicate/replay guard: ids are monotonic per sender.
+        if kind ~= "ping" and msg.id and seen[sender] and msg.id <= seen[sender] then return end
+        if msg.id then seen[sender] = math.max(seen[sender] or 0, msg.id) end
         if kind == "ping" then sendAck(sender, msg.id, true, "pong"); return end
         local s, cur = currentState()
         if not (cur.x and cur.z) then sendAck(sender, msg.id, false, "no position fix"); return end

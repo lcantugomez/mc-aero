@@ -9,6 +9,7 @@
 local CONFIG = {
     protocol = "mc_aero.telemetry.v1",
     commandProtocol = "mc_aero.command.v1",
+    callsign = nil,  -- set to match the aircraft's config.mission.callsign (optional)
     endpoint = "https://REPLACE_ME.lambda-url.us-east-2.on.aws/",
     apiKey = "REPLACE_WITH_SECRET",
     flushInterval = 1.0,
@@ -33,6 +34,7 @@ if override then
     CONFIG.apiKey = override.apiKey or CONFIG.apiKey
     CONFIG.protocol = override.protocol or CONFIG.protocol
     CONFIG.commandProtocol = override.commandProtocol or CONFIG.commandProtocol
+    CONFIG.callsign = override.callsign or CONFIG.callsign
 end
 
 -- Only push to S3 when the endpoint + key are actually configured; otherwise the
@@ -73,7 +75,7 @@ local latest, lastRxMs = nil, 0
 local buffer, sending = {}, nil
 local posted, failed = 0, 0
 local acks = {}
-local nextCmdId = 0
+local nextCmdId = os.epoch("utc")  -- monotonic across restarts (epoch grows) -> no replay
 local lastAck = nil
 
 local function loadWaypoints()
@@ -158,6 +160,8 @@ end
 local function sendCommand(msg)
     nextCmdId = nextCmdId + 1
     msg.id = nextCmdId
+    msg.ts = nowMs()
+    if CONFIG.callsign then msg.callsign = CONFIG.callsign end
     rednet.broadcast(msg, CONFIG.commandProtocol)
     return msg.id
 end
