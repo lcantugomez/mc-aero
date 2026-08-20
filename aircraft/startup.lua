@@ -35,9 +35,10 @@ local function readCenterOfMass()
     return util.call(config.peripherals.physicsAssembler, "getCenterOfMass")
 end
 
-local Control = loadModule("control")
-local controlConfig = loadModule("control_config")
-local controller = Control.new(controlConfig, util)
+local LQI = loadModule("lqi")
+local lqiConfig = loadModule("lqi_config")
+local plantK = loadModule("plant_K")
+local controller = LQI.new(lqiConfig, util, plantK)
 
 local function printWarnings(label, warnings)
     for _, warning in ipairs(warnings or {}) do
@@ -55,7 +56,7 @@ if telemetry.error then print("[WARN] telemetry: " .. telemetry.error) end
 if logger.error then print("[WARN] logger: " .. logger.error) end
 if logger.enabled then print("Logging to " .. logger.path) end
 
-local controlKeys = controlConfig.keys
+local controlKeys = lqiConfig.keys
 
 local function pressedSet()
     local pressed = util.call(config.peripherals.typewriter, "getPressedKeyCodes")
@@ -116,7 +117,7 @@ local function run()
             manualInput = actuators:apply("manual")
         else
             sensorState = sensors:read()
-            local axisTargets, tel = controller:update(sensorState, controlConfig.dt)
+            local axisTargets, tel = controller:update(sensorState, lqiConfig.dt)
             actuators:apply("autopilot", { axisTargets = axisTargets })
             controlTelemetry = tel
         end

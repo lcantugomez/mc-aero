@@ -77,13 +77,15 @@ A[3, 7] = 1.0
 # translational + yaw dynamics from actuator RPM states
 for j in range(N):
     col = 8 + j
-    A[4, col] = GF[0, j] / M
-    A[5, col] = GF[1, j] / M
-    A[6, col] = GF[2, j] / M
-    A[7, col] = GM[j] / I_PSI
+    # CMD_GAIN folded into effectiveness so the actuator state is command-equivalent
+    # (steady state = command), which makes the onboard propagation trivial.
+    A[4, col] = CMD_GAIN * GF[0, j] / M
+    A[5, col] = CMD_GAIN * GF[1, j] / M
+    A[6, col] = CMD_GAIN * GF[2, j] / M
+    A[7, col] = CMD_GAIN * GM[j] / I_PSI
     tau = TAU[CHANNELS[j]]
     A[col, col] = -1.0 / tau
-    B[col, j]   = CMD_GAIN / tau   # command->omega steady gain folded into B
+    B[col, j]   = 1.0 / tau
 
 # ------------------------------------------------------------------ LQI augment
 # tracked outputs: s_x, s_y, s_z, psi (rows 0..3). xi_dot = -C_r x (regulator form)
@@ -120,8 +122,8 @@ print("augmented (A_I,B_I): rank %d / %d  %s" % (r_aug, nI, "OK" if r_aug == nI 
 
 # hover nominal for the main-lift channel (needs |G_Fy| for mainLift)
 gfy_main = abs(GF[1, CHANNELS.index("mainLift")])
-w_hover = M * G / gfy_main if gfy_main > 1e-9 else float("nan")
-print("\nhover nominal main-lift omega* = m*g / G_Fy_main = %.2f" % w_hover)
+w_hover = M * G / (CMD_GAIN * gfy_main) if gfy_main > 1e-9 else float("nan")
+print("\nhover nominal main-lift command* = m*g / (CMD_GAIN*G_Fy_main) = %.2f" % w_hover)
 
 # ------------------------------------------------------------------ discretize
 Maug = np.zeros((nI + N, nI + N))
@@ -178,7 +180,7 @@ lua.append('    hoverMainOmega = %.4f,' % w_hover)
 lua.append('  },')
 lua.append("  K = " + lua_matrix(K) + ",")
 lua.append("}")
-out_path = __file__.rsplit("/", 1)[0] + "/plant_K.lua"
+out_path = __file__.rsplit("/", 1)[0] + "/../aircraft/plant_K.lua"
 with open(out_path, "w") as f:
     f.write("\n".join(lua) + "\n")
 print("\nwrote %s  (K is %d x %d)" % (out_path, K.shape[0], K.shape[1]))
