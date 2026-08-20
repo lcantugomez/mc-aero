@@ -82,10 +82,13 @@ function LQI:disengage()
     self.mode = "manual"
 end
 
--- Clear the integral accumulators (fresh start for a new mission/command, so a
--- stale integral from a previous target can't bias the new one).
+-- Clear only the HORIZONTAL position integrals for a new destination. Altitude
+-- (s_y) and heading (psi) integrals are preserved -- they hold the craft up and
+-- level, and zeroing them on each command made the craft sag/twitch (and stack
+-- up over multiple gotos). Full reset happens on manual->auto engage instead.
 function LQI:resetIntegral()
-    self.xi = { s_x = 0, s_y = 0, s_z = 0, psi = 0 }
+    self.xi.s_x = 0
+    self.xi.s_z = 0
 end
 
 -- Update setpoints without touching integrals/actuator states (for the guidance

@@ -192,7 +192,7 @@ local function statusLines()
         if pos and pos.comX then
             lines[#lines + 1] = string.format("com:  %s,%s", fmt(pos.comX), fmt(pos.comZ))
         end
-        lines[#lines + 1] = "alt:  " .. fmt(get(latest, "sensors", "altitude", "getHeight"))
+        lines[#lines + 1] = "alt:  " .. fmt(get(latest, "sensors", "altitude", "height"))
             .. " hdg:" .. fmt(get(latest, "sensors", "navigation", "getHeading"))
     end
     if lastAck then

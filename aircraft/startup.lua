@@ -125,6 +125,7 @@ local function run()
         return s, {
             x = pos.comX, z = pos.comZ,
             height = tonumber(alt.height), heading = tonumber(nav.getHeading),
+            vy = tonumber(alt.verticalSpeed),
             dt = lqiConfig.dt,
         }
     end
@@ -213,6 +214,7 @@ local function run()
             local cur = {
                 x = pos.comX, z = pos.comZ,
                 height = tonumber(alt.height), heading = tonumber(nav.getHeading),
+                vy = tonumber(alt.verticalSpeed),
                 dt = lqiConfig.dt,
             }
             local sp, gstate = guidance:update(cur)

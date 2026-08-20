@@ -86,7 +86,13 @@ function Guidance:update(cur)
         self.sp.x, self.sp.z = self.launch.x, self.launch.z
         self.sp.altitude = c.cruiseAltitude
         -- heading held at whatever it was when the mission started
-        if cur.height and cur.height >= c.cruiseAltitude - (c.altTolerance or 1.5) then
+        local near = cur.height and cur.height >= c.cruiseAltitude - (c.altTolerance or 1.5)
+        -- "good enough": within a band and climb has plateaued -> gun it (the
+        -- altitude loop keeps pushing toward cruiseAltitude during cruise).
+        local goodEnough = cur.height
+            and cur.height >= c.cruiseAltitude - (c.climbBand or 25)
+            and (cur.vy == nil or math.abs(cur.vy) <= (c.climbVyLow or 0.4))
+        if near or goodEnough then
             self.state = "orient"
         end
 

@@ -86,6 +86,10 @@ local config = {
         arriveRadius = 3,          -- cruise -> arrive within this of the goal (blocks)
         orientToleranceDeg = 8,    -- heading-aligned threshold to leave ORIENT
         altTolerance = 1.5,        -- altitude-reached threshold (blocks)
+        climbBand = 25,            -- leave CLIMB once within this of cruise alt AND
+        climbVyLow = 0.4,          -- climbing slower than this (b/s), so it doesn't
+                                   -- wait on the slow asymptotic final approach. The
+                                   -- altitude loop still targets cruiseAltitude in cruise.
         altitudeFloor = 60,        -- reject goto below this
         altitudeCeiling = 250,     -- reject goto above this
         headingOffsetDeg = -1.5,   -- must match lqi_config (fitted world->body offset)
