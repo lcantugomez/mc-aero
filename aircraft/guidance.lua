@@ -76,6 +76,12 @@ function Guidance:update(cur)
     local st = self.state
     local dt = cur.dt or 0.05
 
+    -- If the nav fix is missing, don't run position math (would produce nil
+    -- arithmetic / NaN). Hold the last setpoint until position returns.
+    if st ~= "hold" and not (type(cur.x) == "number" and type(cur.z) == "number") then
+        return self.sp, self.state
+    end
+
     if st == "climb" then
         self.sp.x, self.sp.z = self.launch.x, self.launch.z
         self.sp.altitude = c.cruiseAltitude

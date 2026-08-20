@@ -115,6 +115,7 @@ local function run()
     local telemetryError = telemetry.error
     local mode = "manual"
     local prevEngage = false
+    local prevGstate = nil
 
     -- Snapshot current CoM-referenced state for guidance/commands.
     local function currentState(s)
@@ -200,6 +201,10 @@ local function run()
                 dt = lqiConfig.dt,
             }
             local sp, gstate = guidance:update(cur)
+            if gstate ~= prevGstate then
+                print("[gd] " .. tostring(gstate))
+                prevGstate = gstate
+            end
             controller:setTarget(sp)
             local axisTargets, tel = controller:update(sensorState, lqiConfig.dt)
             actuators:apply("autopilot", { axisTargets = axisTargets })

@@ -35,7 +35,14 @@ if override then
     CONFIG.commandProtocol = override.commandProtocol or CONFIG.commandProtocol
 end
 
-if not http then error("HTTP is disabled in the CC:Tweaked config", 0) end
+-- Only push to S3 when the endpoint + key are actually configured; otherwise the
+-- pocket is command-only and we skip HTTP entirely (no mounting http_failure).
+local relayEnabled = type(CONFIG.endpoint) == "string"
+    and not CONFIG.endpoint:find("REPLACE")
+    and type(CONFIG.apiKey) == "string"
+    and not CONFIG.apiKey:find("REPLACE")
+
+if relayEnabled and not http then error("HTTP is disabled in the CC:Tweaked config", 0) end
 
 local function openModem()
     for _, name in ipairs(peripheral.getNames()) do
@@ -85,6 +92,7 @@ local waypoints = loadWaypoints()
 
 -- ---- S3 relay (no rendering; console owns the screen) -------------------
 local function tryFlush()
+    if not relayEnabled then return end
     if sending or #buffer == 0 then return end
     local take = math.min(CONFIG.maxBatch, #buffer)
     local batch = {}
@@ -113,9 +121,11 @@ local function relay()
             if protocol == CONFIG.protocol and type(message) == "table" then
                 latest = message
                 lastRxMs = nowMs()
-                buffer[#buffer + 1] = message
-                while #buffer > CONFIG.maxBuffer do table.remove(buffer, 1) end
-                if #buffer >= CONFIG.maxBatch then tryFlush() end
+                if relayEnabled then
+                    buffer[#buffer + 1] = message
+                    while #buffer > CONFIG.maxBuffer do table.remove(buffer, 1) end
+                    if #buffer >= CONFIG.maxBatch then tryFlush() end
+                end
             elseif protocol == CONFIG.commandProtocol and type(message) == "table" and message.kind == "ack" then
                 acks[message.id] = message
             end
@@ -185,7 +195,9 @@ local function statusLines()
         lines[#lines + 1] = "ack: " .. (lastAck.accepted and "OK " or "NO ")
             .. tostring(lastAck.reason or "")
     end
-    lines[#lines + 1] = string.format("S3 ok:%d err:%d", posted, failed)
+    lines[#lines + 1] = relayEnabled
+        and string.format("S3 ok:%d err:%d", posted, failed)
+        or "S3 relay: off"
     return lines
 end
 
