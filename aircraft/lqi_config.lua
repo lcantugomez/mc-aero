@@ -31,11 +31,12 @@ return {
     -- World->body rotation (deg) applied to the horizontal POSITION error only
     -- (velocity is already body-frame from the sensors). Tune if position hold
     -- rotates/spirals. Only used when enable.position = true.
-    headingOffsetDeg = 0,
+    -- Constant offset added to heading in the world->body position rotation.
+    -- Fitted from flight data (bodyVel = Rot(heading)*worldVel, offset ~ -1.5 deg).
+    headingOffsetDeg = -1.5,
 
-    -- Sign of the world->body position projection per body axis. Defaults are the
-    -- derived-correct values (body-z fixed from the runaway bug). Flip a sign here
-    -- if position hold still drives away on that axis, no model rebuild needed.
+    -- Sign of the world->body position projection per axis. With the fitted
+    -- rotation these should be +1; flip one only if that axis still drives away.
     positionSign = { forward = 1, lateral = 1 },
 
     -- Integral anti-windup clamps per tracked output (deviation-seconds).
@@ -46,7 +47,7 @@ return {
     -- 1) position=false, heading=false  -> altitude hold + drift/rate damping
     -- 2) heading=true                   -> add heading hold
     -- 3) position=true                  -> add absolute X/Z hold (needs headingOffsetDeg)
-    enable = { altitude = true, heading = false, position = false },
+    enable = { altitude = true, heading = true, position = true },
 
     keys = { engage = keys.p, override = keys.o },
 }

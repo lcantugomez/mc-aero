@@ -156,7 +156,7 @@ Q = np.diag(qdiag)
 # mainLift softened (altitude was a touch hot), yaw stiffened (heading slid in
 # too slowly). upDown/forwardBack/leftRight left at the nominal.
 RHO_CH = {
-    "mainLift": 225.0,   # softer altitude
+    "mainLift": 275.0,   # softer altitude (a touch more than before)
     "forwardBack": 150.0,
     "leftRight": 150.0,
     "yaw": 100.0,        # slightly more aggressive heading

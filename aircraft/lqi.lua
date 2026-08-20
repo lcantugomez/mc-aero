@@ -101,14 +101,14 @@ function LQI:update(sensorState, dt)
         and self.targets.x and self.targets.z and heading then
         local dX = pos.comX - self.targets.x
         local dZ = pos.comZ - self.targets.z
-        local psi = math.rad(heading + (lc.headingOffsetDeg or 0))
-        local sp, cp = math.sin(psi), math.cos(psi)
-        -- Body axes in world (right-handed, verified vs the velocity sensor at
-        -- heading ~90): body-x (aft) = (sin, cos); body-z (left) = (-cos, sin).
-        -- s_z uses the corrected body-z direction so d(s_z)/dt matches sensor v_z.
+        -- World->body rotation fitted from flight data: bodyVel = Rot(heading)*worldVel
+        -- (theta = heading + small offset). This makes d(s)/dt = v (same frame as the
+        -- velocity sensors), which is what lets position hold settle instead of spiral.
+        local th = math.rad(heading + (lc.headingOffsetDeg or 0))
+        local ct, st = math.cos(th), math.sin(th)
         local sgn = lc.positionSign or {}
-        s_x = (sgn.forward or 1) * (dX * sp + dZ * cp)
-        s_z = (sgn.lateral or 1) * (dZ * sp - dX * cp)
+        s_x = (sgn.forward or 1) * (ct * dX - st * dZ)
+        s_z = (sgn.lateral or 1) * (st * dX + ct * dZ)
     end
     local s_y = 0
     if lc.enable.altitude and height and self.targets.altitude then
