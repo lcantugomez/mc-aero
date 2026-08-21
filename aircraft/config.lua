@@ -88,10 +88,7 @@ local config = {
         arriveSpeed = 2.0,         -- ...AND slowed below this (blocks/s). Lets a fast
                                    -- long-range approach bleed off speed and re-orient
                                    -- to the final heading before it descends.
-        orientToleranceDeg = 5,    -- heading-aligned threshold to leave ORIENT
-        cruiseAlignDeg = 45,       -- if heading drifts this far off the bearing during
-                                   -- cruise, hold position and turn onto it before
-                                   -- translating (keeps it flying roughly nose-forward)
+        orientToleranceDeg = 8,    -- heading-aligned threshold to leave ORIENT
         altTolerance = 1.5,        -- altitude-reached threshold (blocks)
         climbBand = 25,            -- leave CLIMB once within this of cruise alt AND
         climbVyLow = 0.4,          -- climbing slower than this (b/s), so it doesn't

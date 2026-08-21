@@ -110,9 +110,7 @@ function Guidance:update(cur)
 
     elseif st == "cruise" then
         self.sp.altitude = c.cruiseAltitude
-        local brg = self:bearingTo(cur.x, cur.z, g.x, g.z)
-        self.sp.heading = brg
-        local herr = math.abs(wrapDeg(brg - (cur.heading or brg)))
+        self.sp.heading = self:bearingTo(cur.x, cur.z, g.x, g.z)
         local distCur = math.sqrt((g.x - cur.x) ^ 2 + (g.z - cur.z) ^ 2)
         if distCur <= (c.brakeRadius or 30) then
             self.sp.x, self.sp.z = g.x, g.z
@@ -120,10 +118,6 @@ function Guidance:update(cur)
             -- chasing the bearing-to-goal, which spins wildly right over the target.
             self.finalHeading = g.heading or cur.heading or self.sp.heading
             self.state = "arrive"
-        elseif herr > (c.cruiseAlignDeg or 45) then
-            -- Too far off the bearing: hold position and turn onto it first, so it
-            -- never translates backwards/sideways. Resumes once roughly nose-on.
-            self.sp.x, self.sp.z = cur.x, cur.z
         elseif c.directCruise then
             -- unbounded: hand the goal straight to the LQI. It saturates the
             -- command (floors it) then decelerates via its own velocity damping.
