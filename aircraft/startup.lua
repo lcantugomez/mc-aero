@@ -229,6 +229,7 @@ local function run()
                 prevGstate = gstate
             end
             controller:setTarget(sp)
+            controller:setCruise(gstate == "cruise")
             local axisTargets, tel = controller:update(sensorState, lqiConfig.dt)
             actuators:apply("autopilot", { axisTargets = axisTargets })
             tel.guidance = { state = gstate }

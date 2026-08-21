@@ -82,6 +82,14 @@ function LQI:disengage()
     self.mode = "manual"
 end
 
+-- Cruise mode: suppress the lateral (cross-track) position hold so leftRight and
+-- yaw stop chasing position and trying to slew the craft sideways/around. The
+-- craft then flies forward (forwardBack) and steers with heading; lateral/yaw
+-- only damp velocity. Full position hold resumes when off (arrive/hold/hover).
+function LQI:setCruise(on)
+    self.cruiseMode = on and true or false
+end
+
 -- Clear only the HORIZONTAL position integrals for a new destination. Altitude
 -- (s_y) and heading (psi) integrals are preserved -- they hold the craft up and
 -- level, and zeroing them on each command made the craft sag/twitch (and stack
@@ -128,6 +136,9 @@ function LQI:update(sensorState, dt)
         s_x = (sgn.forward or 1) * (ct * dX - st * dZ)
         s_z = (sgn.lateral or 1) * (st * dX + ct * dZ)
     end
+    -- In cruise, don't hold lateral position (steer with heading instead), so the
+    -- controller stops flooring leftRight/yaw to slew the craft sideways.
+    if self.cruiseMode then s_z = 0 end
     local s_y = 0
     if lc.enable.altitude and height and self.targets.altitude then
         s_y = height - self.targets.altitude

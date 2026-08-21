@@ -77,6 +77,7 @@ local posted, failed = 0, 0
 local acks = {}
 local nextCmdId = os.epoch("utc")  -- monotonic across restarts (epoch grows) -> no replay
 local lastAck = nil
+local relayActive = false  -- runtime on/off; starts OFF so you never accidentally flush
 
 local function loadWaypoints()
     local ok, wp = pcall(dofile, CONFIG.waypointFile)
@@ -94,7 +95,7 @@ local waypoints = loadWaypoints()
 
 -- ---- S3 relay (no rendering; console owns the screen) -------------------
 local function tryFlush()
-    if not relayEnabled then return end
+    if not (relayEnabled and relayActive) then return end
     if sending or #buffer == 0 then return end
     local take = math.min(CONFIG.maxBatch, #buffer)
     local batch = {}
@@ -123,7 +124,7 @@ local function relay()
             if protocol == CONFIG.protocol and type(message) == "table" then
                 latest = message
                 lastRxMs = nowMs()
-                if relayEnabled then
+                if relayEnabled and relayActive then
                     buffer[#buffer + 1] = message
                     while #buffer > CONFIG.maxBuffer do table.remove(buffer, 1) end
                     if #buffer >= CONFIG.maxBatch then tryFlush() end
@@ -199,9 +200,13 @@ local function statusLines()
         lines[#lines + 1] = "ack: " .. (lastAck.accepted and "OK " or "NO ")
             .. tostring(lastAck.reason or "")
     end
-    lines[#lines + 1] = relayEnabled
-        and string.format("S3 ok:%d err:%d", posted, failed)
-        or "S3 relay: off"
+    if not relayEnabled then
+        lines[#lines + 1] = "S3: not configured"
+    elseif relayActive then
+        lines[#lines + 1] = string.format("S3: ON ok:%d err:%d buf:%d", posted, failed, #buffer)
+    else
+        lines[#lines + 1] = "S3: OFF (press r)"
+    end
     return lines
 end
 
@@ -216,7 +221,7 @@ local function render()
         term.write(tostring(s):sub(1, w))
     end
     term.setCursorPos(1, h)
-    term.write("[g]oto [w]p [s]ave [h]old [c]ancel")
+    term.write("g:goto w:wp s:save h:hold c:cxl r:s3")
 end
 
 local function prompt(label, allowBlank)
@@ -300,6 +305,14 @@ local function console()
             elseif k == "s" then doSaveWaypoint()
             elseif k == "h" then lastAck = awaitAck(sendCommand({ kind = "hold" }))
             elseif k == "c" then lastAck = awaitAck(sendCommand({ kind = "cancel" }))
+            elseif k == "r" then
+                if relayEnabled then
+                    relayActive = not relayActive
+                    if not relayActive then buffer = {} end   -- drop pending so it can't flush
+                    lastAck = { accepted = relayActive, reason = "S3 relay " .. (relayActive and "ON" or "OFF") }
+                else
+                    lastAck = { accepted = false, reason = "S3 not configured" }
+                end
             end
             render()
             ticker = os.startTimer(0.5)
