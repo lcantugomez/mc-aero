@@ -97,7 +97,10 @@ local config = {
         altitudeFloor = 60,        -- reject goto below this
         altitudeCeiling = 250,     -- reject goto above this
         headingOffsetDeg = -1.5,   -- must match lqi_config (fitted world->body offset)
-        bearingFlip = false,       -- set true if ORIENT faces away from the goal
+        bearingFlip = true,        -- command the FB-prop-forward orientation (the tail
+                                   -- stabilizer's statically-stable heading) so the
+                                   -- weathervane reinforces the commanded heading in
+                                   -- cruise instead of flipping the craft 180 deg.
         callsign = nil,            -- if set, only accept commands with a matching callsign
         commandTtlMs = 8000,       -- drop commands older than this (stale/replay guard)
     },

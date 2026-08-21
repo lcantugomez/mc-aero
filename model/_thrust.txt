@@ -1,0 +1,48 @@
+records: 1801
+actuators keys: ['bearings', 'errors', 'rsc']
+bearing[0] keys: ['getAirflow', 'getAngle', 'getAngularSpeed', 'getAxis', 'getBlockNormal', 'getFacingVector', 'getKind', 'getRotationSpeed', 'getSailPower', 'getSpeed', 'getStabilizationStrength', 'getThrust', 'getThrustHandedness', 'getThrustVector', 'getTiltAngle', 'gyro', 'isActive', 'isAssembled', 'isOverstressed', 'isWoodenTop', 'name', 'role']
+bearing[0]: {'getSpeed': 0, 'getAxis': 'up', 'getAngle': 8.287822723388672, 'role': 'main_lift_left', 'getFacingVector': [0, 1, 0], 'getAirflow': -6.865257102678873e-34, 'getSailPower': 40, 'getThrustHandedness': 'left_handed', 'getAngularSpeed': 6.512955020425505e-34, 'getThrust': -1.0984411364286195e-31, 'isAssembled': True, 'getStabilizationStrength': 0, 'getTiltAngle': 0, 'getRotationSpeed': 6.512955020425505e-34, 'gyro': True, 'isWoodenTop': False, 'name': 'gyroscopic_propeller_bearing_1', 'isActive': False, 'getThrustVector': [0, 1, 0], 'isOverstressed': False, 'getBlockNormal': [0, 1, 0], 'getKind': 'generator'}
+rsc[forwardBack] keys: ['commandedSpeed', 'getSpeed', 'getStressContribution', 'getStressImpact', 'getTargetSpeed', 'hasSource', 'isOverstressed', 'name']
+rsc[forwardBack]: {'getTargetSpeed': 0, 'getSpeed': 0, 'name': 'Create_RotationSpeedController_2', 'getStressImpact': 0, 'getStressContribution': 0, 'isOverstressed': False, 'hasSource': False, 'commandedSpeed': 0}
+
+speed field: getSpeed  thrust field: getThrust
+
+=== per-bearing: bin by |rpm|, average thrust (kills ramp hysteresis) ===
+
+  forward_back       bins=7  rpm max=224  thrust max=5114
+      linear  T=22.554*w              R2=0.9979
+      pure-q  T=0.11872*w^2           R2=0.7566
+      quad    T=0.00886*w^2 + 20.967*w  R2=0.9994
+      curve (rpm -> thrust):
+      32:600  64:1351  96:2102  128:2856  160:3609  192:4361  224:5114
+
+  main_lift_left     bins=7  rpm max=224  thrust max=-1201
+      linear  T=-47.956*w              R2=0.9967
+      pure-q  T=-0.25272*w^2           R2=0.7711
+      quad    T=-0.02384*w^2 + -43.683*w  R2=0.9990
+      curve (rpm -> thrust):
+      32:-1201  64:-2812  96:-4431  128:-6073  160:-7670  192:-9288  224:-10907
+
+  main_lift_right    bins=7  rpm max=224  thrust max=10907
+      linear  T=47.956*w              R2=0.9967
+      pure-q  T=0.25272*w^2           R2=0.7711
+      quad    T=0.02384*w^2 + 43.683*w  R2=0.9990
+      curve (rpm -> thrust):
+      32:1201  64:2812  96:4431  128:6073  160:7670  192:9288  224:10907
+  translation_left   only 0 pts (not swept)
+  translation_right  only 0 pts (not swept)
+  up_down            only 0 pts (not swept)
+
+  yaw_left           bins=6  rpm max=192  thrust max=-128
+      linear  T=-4.402*w              R2=0.9991
+      pure-q  T=-0.02675*w^2           R2=0.7288
+      quad    T=-0.00132*w^2 + -4.198*w  R2=0.9998
+      curve (rpm -> thrust):
+      32:-128  64:-273  96:-417  128:-562  160:-707  192:-852
+
+  yaw_right          bins=6  rpm max=192  thrust max=852
+      linear  T=4.402*w              R2=0.9991
+      pure-q  T=0.02675*w^2           R2=0.7288
+      quad    T=0.00132*w^2 + 4.198*w  R2=0.9998
+      curve (rpm -> thrust):
+      32:128  64:273  96:417  128:562  160:707  192:852
